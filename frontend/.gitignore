@@ -1,5 +1,6 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# === Frontend (React/Node.js) ===
 # dependencies
 /node_modules
 /.pnp
@@ -21,3 +22,35 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+
+# === Backend (Python/FastAPI) ===
+__pycache__/
+*.py[cod]
+.python-version
+.venv/
+venv/
+env/
+*.egg-info/
+
+# === Banco de Dados (PostgreSQL) ===  
+# Ignora backups ou dados locais (se houver)  
+*.dump  
+*.backup  
+
+# === Docker ===  
+docker-compose.override.yml  # Configurações locais  
+
+# === Variáveis de Ambiente ===  
+.env                          # CRÍTICO: nunca versionar!  
+.env.local  
+.env.*.local  
+
+# === IDEs/Editores ===  
+.vscode/  
+.idea/  
+*.swp  
+*.swo  
+
+# === Sistemas Operacionais ===  
+Thumbs.db  
