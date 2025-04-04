@@ -3,12 +3,12 @@ from typing import Optional
 from enum import Enum
 import uuid
 
-class Reserva(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    sala: str
-    data: str
-    horario: str
-    professor: str
+# class Reserva(SQLModel, table=True):
+#     id: Optional[int] = Field(default=None, primary_key=True)
+#     sala: str
+#     data: str
+#     horario: str
+#     professor: str
 
 # Enum para tipos de usuário
 class TipoUsuario(str, Enum):

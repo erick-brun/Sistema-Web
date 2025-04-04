@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import reservas, usuarios
+from app.routers import usuarios
 from app.database import engine, init_db
 from sqlmodel import SQLModel
 
@@ -21,12 +21,12 @@ def startup_event():
     init_db()
 
 # Rotas
-app.include_router(reservas.router)
+# app.include_router(reservas.router)
+app.include_router(usuarios.router)
 
 @app.get("/")
 def read_root():
     return {"message": "API de Reservas funcionando!"}
 
 
-# from app.routers import usuarios
-app.include_router(usuarios.router)
+

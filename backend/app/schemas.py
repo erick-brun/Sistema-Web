@@ -3,11 +3,11 @@ from typing import Optional
 from uuid import UUID
 from enum import Enum
 
-class ReservaCreate(BaseModel):
-    sala: str
-    data: str
-    horario: str
-    professor: str
+# class ReservaCreate(BaseModel):
+#     sala: str
+#     data: str
+#     horario: str
+#     professor: str
 
 # Enum para tipos de usuário
 class TipoUsuario(str, Enum):
