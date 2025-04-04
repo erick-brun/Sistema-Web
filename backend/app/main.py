@@ -1,9 +1,26 @@
 from fastapi import FastAPI
-from .routers import reservas
+from fastapi.middleware.cors import CORSMiddleware
+from app.routers import reservas, usuarios
+from app.database import engine, init_db
+from sqlmodel import SQLModel
 
 app = FastAPI()
 
-# Incluir as rotas
+# Habilitar CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Criar tabelas ao iniciar a aplicação
+@app.on_event("startup")
+def startup_event():
+    init_db()
+
+# Rotas
 app.include_router(reservas.router)
 
 @app.get("/")
@@ -11,12 +28,5 @@ def read_root():
     return {"message": "API de Reservas funcionando!"}
 
 
-from fastapi.middleware.cors import CORSMiddleware
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Pode trocar "*" por ["http://localhost:3000"] para mais segurança
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# from app.routers import usuarios
+app.include_router(usuarios.router)
