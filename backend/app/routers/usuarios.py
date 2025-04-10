@@ -18,19 +18,6 @@ def criar_usuario(usuario: UsuarioCreate, session: Session = Depends(get_session
 def obter_usuario(usuario_id: str, session: Session = Depends(get_session)):
     return crud.obter_usuario(usuario_id, session)  # 🔹 Chamando a função do CRUD
 
-
-
-# @router.post("/login")
-# def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
-#     usuario = session.exec(select(Usuario).where(Usuario.email == form_data.username)).first()
-    
-#     if not usuario or not verify_password(form_data.password, usuario.senha):
-#         raise HTTPException(status_code=401, detail="Credenciais inválidas")
-    
-#     access_token = create_access_token(data={"sub": str(usuario.id), "tipo": usuario.tipo})
-#     return {"access_token": access_token, "token_type": "bearer"}
-
-
 @router.post("/login")
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),

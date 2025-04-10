@@ -1,12 +1,12 @@
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
-from app.models import Usuario
+from app.models import Usuario, TipoUsuario
 from app.schemas import UsuarioCreate
 from app.security import hash_password
 from fastapi import HTTPException, status
 
 def criar_usuario(usuario: UsuarioCreate, session: Session) -> Usuario:
-    """Cria um novo usuário no banco de dados."""
+    """Cria um novo usuário como 'user' por padrão."""
     usuario_existente = session.exec(select(Usuario).where(Usuario.email == usuario.email)).first()
     if usuario_existente:
         raise HTTPException(
@@ -14,9 +14,14 @@ def criar_usuario(usuario: UsuarioCreate, session: Session) -> Usuario:
             detail="E-mail já está em uso."
         )
     
-    usuario.senha = hash_password(usuario.senha)
-    
-    novo_usuario = Usuario.from_orm(usuario)
+    hashed = hash_password(usuario.senha)
+    novo_usuario = Usuario(
+        nome=usuario.nome,
+        email=usuario.email,
+        senha=hashed,
+        tipo=TipoUsuario.user  # força tipo user
+    )
+
     session.add(novo_usuario)
     
     try:
@@ -30,10 +35,3 @@ def criar_usuario(usuario: UsuarioCreate, session: Session) -> Usuario:
         )
     
     return novo_usuario
-
-def obter_usuario(usuario_id: str, session: Session) -> Usuario:
-    """Obtém um usuário pelo ID."""
-    usuario = session.get(Usuario, usuario_id)
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    return usuario

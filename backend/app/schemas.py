@@ -1,32 +1,22 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
 from uuid import UUID
 from enum import Enum
 
-# class ReservaCreate(BaseModel):
-#     sala: str
-#     data: str
-#     horario: str
-#     professor: str
-
 # Enum para tipos de usuário
 class TipoUsuario(str, Enum):
-    professor = "professor"
-    tecnico = "tecnico"
-    inspetor = "inspetor"
+    user = "user"
+    admin = "admin"
 
-# Classe base para evitar repetição
+# Base comum
 class UsuarioBase(BaseModel):
     nome: str
     email: EmailStr
-    tipo: TipoUsuario
 
 # Base para criação
 class UsuarioCreate(BaseModel):
     nome: str
     email: EmailStr
     senha: str
-    tipo: TipoUsuario
 
 # Base para leitura (resposta sem a senha)
 class UsuarioRead(BaseModel):
