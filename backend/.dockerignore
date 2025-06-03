@@ -1,0 +1,31 @@
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore virtual environment directories
+.venv/
+venv/
+env/
+
+# Ignore build and distribution directories
+dist/
+build/
+*.egg-info/
+
+# Ignore editor/IDE specific files
+.vscode/
+.idea/
+
+# Ignore version control directories
+.git/
+.gitignore # Pode ignorar o .gitignore também
+
+# Ignore temporary files
+*.tmp
+tmp/
+
+# Ignore the .env file - Sensitive information should be handled via Docker secrets or environment variables in docker-compose/production
+.env
+
+# Ignore the Dockerfile itself (it's used to build, not part of the app runtime)
+Dockerfile

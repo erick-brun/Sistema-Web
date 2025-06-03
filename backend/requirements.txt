@@ -1,9 +1,11 @@
-fastapi
-uvicorn
-sqlmodel
-asyncpg
-psycopg2-binary
-pydantic[email]
-passlib[bcrypt]
-python-jose[cryptography]
-python-multipart
+# Lista das dependências Python para o serviço backend (FastAPI)
+
+fastapi # O framework web assíncrono de alta performance
+uvicorn # Servidor ASGI para rodar a aplicação FastAPI
+sqlmodel # Biblioteca para interagir com o banco de dados, combinando Pydantic e SQLAlchemy
+psycopg2-binary # Driver para PostgreSQL, permite ao Python se conectar com o banco
+pydantic[email] # Extensão do Pydantic para validação de formato de email
+passlib[bcrypt] # Biblioteca para hash de senhas de forma segura (inclui o algoritmo bcrypt)
+python-jose[cryptography] # Biblioteca para trabalhar com JSON Web Tokens (JWT) - útil para autenticação baseada em tokens
+python-multipart # Necessário pelo FastAPI para tratar dados de formulário, incluindo upload de arquivos (mesmo que não use upload, é bom ter)
+python-dotenv # Carrega variáveis de ambiente de um arquivo .env para o ambiente de execução Python 

@@ -1,0 +1,33 @@
+# SISTEMA-WEB/nginx/nginx.conf.template - VERSIÃO FINAL CORRIGIDA SEM DIRETIVAS DUPLICADAS
+
+# Define os "upstreams" (serviços/contêineres de destino)
+upstream backend {
+    server backend:${BACKEND_INTERNAL_PORT};
+}
+
+upstream frontend {
+    server frontend:${FRONTEND_INTERNAL_PORT};
+}
+
+# Configuração do BLOCO SERVER principal
+server {
+    listen 80;
+    server_name localhost;
+
+    location /api/ {
+        rewrite /api/(.*) /$1 break;
+        proxy_pass http://backend/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        proxy_pass http://frontend/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

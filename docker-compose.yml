@@ -1,45 +1,128 @@
+version: '3.8'
 services:
+  # Serviço do Banco de Dados PostgreSQL
   db:
-    image: postgres:15
-    container_name: postgres_db
-    restart: always
+    image: postgres:15 # Imagem oficial do PostgreSQL na versão 15
+    container_name: postgres_db # Nome amigável para o contêiner
+    restart: always # Sempre reinicia o contêiner se ele parar
+    # Variáveis de ambiente lidas automaticamente do arquivo .env na raiz do projeto
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: reservas
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # Mapeia a porta 5432 do contêiner para a porta 5432 no seu computador.
+    # Útil para acessar o banco diretamente com ferramentas como pgAdmin, DBeaver, etc.
     ports:
       - "5432:5432"
+    # Define um volume nomeado para persistir os dados do banco.
+    # Garante que seus dados não sejam perdidos ao remover ou atualizar o contêiner.
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Healthcheck para verificar se o banco de dados está pronto para aceitar conexões.
+    # O serviço backend depende deste healthcheck.
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"] # Testa a conexão usando o usuário definido no .env
+      interval: 5s # Frequência do teste
+      timeout: 5s # Tempo máximo para o teste responder
+      retries: 10 # Número de tentativas antes de considerar o serviço não saudável
+    # Associa este serviço à rede customizada.
+    networks:
+      - app_network
 
+  # Serviço do Backend (FastAPI)
   backend:
-    build: ./backend
-    container_name: backend
-    restart: always
+    build: ./backend # Constrói a imagem Docker usando o Dockerfile no diretório ./backend
+    container_name: backend # Nome amigável para o contêiner
+    restart: always # Sempre reinicia
+    # Declara dependência do serviço 'db'. O backend só inicia APÓS o banco estar saudável.
     depends_on:
       db:
         condition: service_healthy
+    # Carrega variáveis de ambiente do arquivo backend/.env (ex: SECRET_KEY)
+    env_file:
+      - ./backend/.env
+    # Passa variáveis de ambiente específicas definidas no .env da raiz (ex: DATABASE_URL)
     environment:
-      DATABASE_URL: postgresql://admin:admin@db/reservas
+      DATABASE_URL: ${DATABASE_URL} # Lê do .env na raiz
+      # Outras variáveis específicas do backend podem ser passadas aqui se não estiverem no backend/.env
+    # Mapeia a porta interna do backend (definida no .env da raiz) para a mesma porta no seu computador.
+    # Útil para testar a API diretamente (ex: com Postman) sem passar pelo Nginx.
     ports:
-      - "8000:8000"
+      - "${BACKEND_INTERNAL_PORT}:${BACKEND_INTERNAL_PORT}"
+    # Define um volume para mapear o código fonte local para dentro do contêiner.
+    # Permite hot-reloading em desenvolvimento: mudanças no código local se refletem instantaneamente no contêiner.
     volumes:
       - ./backend:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # Comando para iniciar a aplicação Uvicorn/FastAPI.
+    # --host 0.0.0.0: permite que a aplicação seja acessível de outros contêineres na rede Docker (Nginx).
+    # --port: usa a porta definida no .env na raiz.
+    # --reload: habilita hot-reloading (requer a instalação de watchfiles ou similar via pip install uvicorn[standard]).
+    command: uvicorn app.main:app --host 0.0.0.0 --port ${BACKEND_INTERNAL_PORT} --reload
+    # Associa este serviço à rede customizada.
+    networks:
+      - app_network
 
+  # Serviço do Frontend (React com Vite)
   frontend:
-    build: ./frontend
-    container_name: react_frontend
+    build: ./frontend # Constrói a imagem Docker usando o Dockerfile no diretório ./frontend
+    container_name: react_frontend # Nome amigável para o contêiner
+    restart: always # Sempre reinicia
+    # Dependência do backend pode ser útil para garantir que a API esteja no ar,
+    # mas o frontend no navegador só tentará acessá-la depois que o app carregar.
+    # depends_on:
+    #   - backend
+    working_dir: /app # Define o diretório de trabalho dentro do contêiner
+    # Define volumes para hot-reloading e persistência do node_modules.
+    # O primeiro mapeia o código fonte local para dentro do contêiner.
+    # O segundo evita que o node_modules local (que pode ter problemas de compatibilidade) sobrescreva o do contêiner.
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    # Mapeia a porta interna do Vite Dev Server (definida no .env na raiz) para uma porta no seu computador (ex: 3000).
+    # Útil para acessar o frontend diretamente em desenvolvimento (sem passar pelo Nginx, útil para debug específico do frontend).
+    # O Nginx acessará o frontend usando a porta interna ${FRONTEND_INTERNAL_PORT}.
+    ports:
+      - "3000:${FRONTEND_INTERNAL_PORT}" # Mapeando a porta 3000 do host para a porta interna do Vite
+    # Passa variáveis de ambiente para o contêiner do frontend.
+    # O Vite as expõe para o código no navegador via import.meta.env.VITE_...
+    environment:
+      VITE_API_URL: ${VITE_API_URL} # Lê do .env na raiz
+      # Se precisar de outras variáveis do .env raiz no frontend, adicione-as aqui.
+      NGINX_EXTERNAL_PORT: ${NGINX_EXTERNAL_PORT}
+    # Comando para iniciar o servidor de desenvolvimento do Vite.
+    # 'npm run dev' é o script definido no package.json do frontend.
+    # '-- --host 0.0.0.0' é crucial para que o servidor seja acessível por outros contêineres (Nginx) na rede Docker.
+    command: npm run dev -- --host 0.0.0.0
+    # Associa este serviço à rede customizada.
+    networks:
+      - app_network
+
+  # --- Serviço Nginx (Proxy Reverso) 
+  nginx:
+    build: ./nginx # Constrói a imagem usando os arquivos em ./nginx
+    container_name: reservas_nginx
     restart: always
+    ports:
+      - "${NGINX_EXTERNAL_PORT}:80"
     depends_on:
       - backend
-    ports:
-      - "3000:80"
-
+      - frontend
+    networks:
+      - app_network
+    # PASSA AS VARIÁVEIS DE AMBIENTE. Nosso script entrypoint as lerá.
+    environment:
+      - BACKEND_INTERNAL_PORT=${BACKEND_INTERNAL_PORT}
+      - FRONTEND_INTERNAL_PORT=${FRONTEND_INTERNAL_PORT}
+    # Não é necessário 'command' ou 'entrypoint' aqui, usamos o definido no Dockerfile.
+    
+# Volumes Nomeados:
+# Define volumes que existem fora dos contêineres para persistir dados.
 volumes:
+  # Volume para armazenar os dados do PostgreSQL de forma persistente.
   postgres_data:
+
+# Redes Customizadas:
+# Define uma rede bridge para que todos os serviços possam se comunicar entre si usando seus nomes de serviço.
+networks:
+  app_network:
+    driver: bridge # Tipo de rede bridge, o padrão e mais comum
