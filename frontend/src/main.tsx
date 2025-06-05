@@ -9,12 +9,15 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"; // Im
 import Login from "./pages/Login";
 import Home from "./pages/Home"; // Esta será sua página protegida inicial
 import CadastroUsuario from "./pages/CadastroUsuario";
+import AmbientesPage from "./pages/AmbientesPage";
+import AmbienteDetailPage from "./pages/AmbienteDetailPage";
+import MyReservasPage from "./pages/MyReservasPage";
+import CalendarPage from "./pages/CalendarPage";
+import RequestReservaPage from "./pages/RequestReservaPage";
 
 // Importe seu componente de Rota Protegida (vamos criar em seguida)
 import ProtectedRoute from "./components/ProtectedRoute";
 
-
-// console.log('API URL:', import.meta.env.VITE_API_URL) // REMOVER a linha de console.log
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -41,20 +44,63 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           }
         />
 
-        {/* 
-          Rota padrão para a raiz '/'.
-          Redireciona para /login (se não logado) ou /home (se logado).
-          Podemos usar um componente para checar o estado de autenticação e redirecionar.
-          Ou simplesmente redirecionar para /login por padrão.
-        */}
-         <Route path="/" element={<Navigate to="/login" replace />} /> {/* Redireciona a raiz para /login */}
+        {/*Rota protegida para a página de Lista de Ambientes */}
+        <Route
+          path="/ambientes" // Defina o caminho da rota (ex: /ambientes)
+          element={
+            <ProtectedRoute>
+              <AmbientesPage /> {/* Renderiza a página AmbientesPage APENAS se autenticado */}
+            </ProtectedRoute>
+          }
+        />
+
+        {/*Rota protegida para a página de Detalhes de Ambiente */}
+        {/* Use um parâmetro na URL ':ambienteId' para o ID do ambiente */}
+        <Route
+          path="/ambientes/:ambienteId" // Ex: /ambientes/5, /ambientes/12
+          element={
+            <ProtectedRoute>
+              <AmbienteDetailPage /> {/* Renderiza a página de detalhes APENAS se autenticado */}
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Rota protegida para a página de Minhas Reservas */}
+        <Route
+          path="/minhas-reservas" // Defina o caminho da rota (ex: /minhas-reservas)
+          element={
+            <ProtectedRoute>
+              <MyReservasPage /> {/* Renderiza a página MyReservasPage APENAS se autenticado */}
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Rota protegida para a página de Calendário */}
+        <Route
+          path="/calendario" // Defina o caminho da rota (ex: /calendario)
+          element={
+            <ProtectedRoute>
+              <CalendarPage /> {/* Renderiza a página CalendarPage APENAS se autenticado */}
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Rota protegida para a página de Solicitação de Reserva */}
+        <Route
+          path="/solicitar-reserva" // Defina o caminho da rota
+          element={
+            <ProtectedRoute>
+              <RequestReservaPage /> {/* Renderiza a página APENAS se autenticado */}
+            </ProtectedRoute>
+          }
+        />
 
 
-        {/* TODO: Adicionar rotas para outras páginas aqui conforme você as criar */}
-        {/* <Route path="/ambientes" element={<ProtectedRoute><AmbientesPage /></ProtectedRoute>} /> */}
-        {/* <Route path="/reservas" element={<ProtectedRoute><MyReservasPage /></ProtectedRoute>} /> */}
-        {/* <Route path="/ambientes/:ambienteId" element={<ProtectedRoute><AmbienteDetailPage /></ProtectedRoute>} /> */}
-        {/* ... e assim por diante ... */}
+        {/* TODO: Adicionar rotas protegidas para outras páginas (Gerenciar, Histórico, etc.) */}
+
+
+        {/* Rota padrão para a raiz '/' (redireciona para login) */}
+         <Route path="/" element={<Navigate to="/login" replace />} />
 
       </Routes>
     </BrowserRouter>

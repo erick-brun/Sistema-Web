@@ -9,6 +9,15 @@ import { useNavigate } from 'react-router-dom';
 // Opcional: Se estiver usando Material UI, importe componentes aqui
 // import { TextField, Button, Typography, Container, Box } from '@mui/material';
 
+interface UsuarioData {
+  id: string; // UUID como string no frontend
+  nome: string;
+  email: string;
+  tipo: 'user' | 'admin'; // Use os tipos do Enum do backend
+  ativo: boolean;
+  data_criacao: string; // Datas geralmente vêm como string ISO 8601
+  // Adicione outros campos do UsuarioRead se precisar
+}
 
 function LoginPage() {
   // Use state para gerenciar os valores dos inputs de email e senha
@@ -48,6 +57,16 @@ function LoginPage() {
       // Armazena o token no LocalStorage (ou outra forma de armazenamento seguro).
       // Este token será automaticamente adicionado ao header Authorization pelas requisições futuras via o interceptor no api.ts.
       localStorage.setItem('accessToken', accessToken);
+
+      // Obter e armazenar o ID do usuário logado
+      // Fazer uma requisição GET /usuarios/me para obter os dados do usuário logado.
+      // Esta requisição usará o token que acabamos de armazenar.
+      const userResponse = await api.get('/usuarios/me');
+      const userData: UsuarioData = userResponse.data; // Usar a interface UsuarioData
+      localStorage.setItem('loggedInUserId', userData.id); // Armazena o ID do usuário
+      // Opcional: Armazenar o objeto completo userData também
+      // localStorage.setItem('userData', JSON.stringify(userData));
+
 
       // Redireciona o usuário para uma página protegida (ex: a página inicial /home).
       console.log('Login bem-sucedido. Redirecionando para /home...');
