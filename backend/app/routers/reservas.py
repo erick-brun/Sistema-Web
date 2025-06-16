@@ -7,7 +7,15 @@
 # =============================================
 # Importações
 # =============================================
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
+# Importações principais do FastAPI - **CORREÇÃO:** Liste todos os elementos necessários explicitamente
+from fastapi import (
+    APIRouter,      # Para criar o router
+    Depends,        # Para injeção de dependências
+    HTTPException,  # Para levantar exceções HTTP (como 403)
+    status,
+    Query,          # Para definir parâmetros de query
+    Body            # Para definir parâmetros no corpo da requisição
+)
 from sqlmodel import Session # Importa Session para tipagem da dependência de sessão
 from uuid import UUID # Importa UUID para lidar com IDs de usuário (relacionados a reservas)
 from typing import List, Optional # Importa para type hints
@@ -20,7 +28,7 @@ from app.schemas import ReservaCreate, ReservaRead, ReservaUpdate, ReservaList, 
 # Importa dependências de segurança
 from app.security import get_current_user, get_current_admin # get_current_user é crucial para saber quem está reservando
 # Importa Enums e Modelos relevantes
-from app.models import StatusReserva, Reserva, Usuario # Importa StatusReserva e Reserva (para type hints de dependências)
+from app.models import StatusReserva, Reserva, Usuario, TipoUsuario
 
 # Importa o módulo CRUD para chamar suas funções de Reserva
 import app.crud as crud
@@ -130,44 +138,58 @@ def obter_reserva_por_id(
     return reserva # FastAPI serializará para ReservaRead.
 
 # =============================================
-# Listar Reservas 
+# Listar Reservas (Acesso Protegido - Diferentes Permissões para User e Admin)
 # Rota: GET /reservas/
+# **MODIFICADO para permitir User filtrar apenas por si mesmo, Admin filtrar por qualquer um**
 # =============================================
-# versão protegida para listar *todas* as reservas (apenas para admin),
-# e você pode criar outra rota (ex: GET /reservas/meus ou adicionar filtros aqui) para usuários comuns.
 @router.get("/", response_model=List[ReservaRead])
-# Requer que o usuário logado seja um administrador para listar TODAS as reservas.
+# Requer que o usuário esteja logado (autenticado).
+# Usamos get_current_user para obter a identidade do usuário logado, seja ele user ou admin.
 def listar_reservas(
-    session: Session = Depends(get_session), # Dependência da sessão do DB
-    admin_user: Usuario = Depends(get_current_admin), # <--- Dependência de segurança! Requer admin logado.
+    session: Session = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user), # Obtém o usuário logado
     skip: int = Query(0, description="Número de reservas a pular para paginação"),
     limit: int = Query(100, description="Número máximo de reservas a retornar"),
-    # Adicionar Query parameters para filtros (por usuário, ambiente, status, período)
-    usuario_id: Optional[UUID] = Query(None, description="Filtrar por ID de usuário (apenas para admin)"),
+    usuario_id: Optional[UUID] = Query(None, description="Filtrar por ID de usuário (apenas para admin ou o próprio usuário)"),
     ambiente_id: Optional[int] = Query(None, description="Filtrar por ID de ambiente"),
     status: Optional[StatusReserva] = Query(None, description="Filtrar por status"),
     data_inicio_ge: Optional[datetime] = Query(None, description="Filtrar: data início >= este valor"),
-    data_inicio_le: Optional[datetime] = Query(None, description="Filtrar: data início <= este valor"),
+    data_inicio_le: Optional[Optional[datetime]] = Query(None, description="Filtrar: data início <= este valor"), # Corrigir Optional aninhado
     data_fim_ge: Optional[datetime] = Query(None, description="Filtrar: data fim >= este valor"),
     data_fim_le: Optional[datetime] = Query(None, description="Filtrar: data fim <= este valor"),
 ):
     """
-    Lista todas as reservas cadastradas com paginação e filtros.
-    Requer privilégios de administrador para listar todas.
-    (Opcional: Adicione endpoint separado ou lógica para listar reservas do próprio usuário).
+    Lista reservas cadastradas com paginação e filtros.
+    Requer autenticação (usuário logado).
+    Usuário comum pode listar apenas suas próprias reservas (se fornecer usuario_id=seu_id, ou sem filtro).
+    Admin pode listar todas ou filtrar por qualquer usuario_id.
     """
-    # Lógica de Autorização (já garantida pelo Depends(get_current_admin))
-    # Verifica se o usuário admin está tentando filtrar por um usuario_id específico (se for o caso)
-    # if usuario_id is not None and admin_user.tipo != TipoUsuario.admin:
-    #     # Esta checagem é redundante se a rota já exige admin, mas pode ser útil se a lógica de filtro for mais complexa.
-    #     pass # A rota já exige admin.
+    filtro_usuario_id: Optional[UUID] = None # Variável que será usada para filtrar no CRUD
 
-    # Chama a função CRUD para obter a lista de reservas com filtros.
+    if current_user.tipo == TipoUsuario.admin:
+        # Admin pode usar o filtro usuario_id fornecido na requisição (se houver).
+        filtro_usuario_id = usuario_id
+    else: # Usuário comum (tipo USER)
+        # Usuário comum SÓ pode ver as próprias reservas.
+        if usuario_id is not None and usuario_id != current_user.id:
+            # Se o USER tentou filtrar por um usuario_id que NÃO é o dele, nega o acesso.
+             # **NOTA:** Aqui você levanta 403. Use status.HTTP_403_FORBIDDEN.
+             # Se a importação de status ainda estiver com problema, use 403 diretamente.
+             raise HTTPException(
+                status_code=403, # <--- Verifique a importação de status
+                detail="Acesso negado. Você só pode listar suas próprias reservas."
+            )
+        # Se o USER não forneceu usuario_id OU forneceu o ID dele, o filtro será o ID dele.
+        filtro_usuario_id = current_user.id # Força o filtro para o ID do usuário logado.
+
+
+    # Chama a função CRUD para obter a lista de reservas com os filtros.
+    # Passamos o filtro_usuario_id controlado para o CRUD.
     reservas = crud.obter_reservas(
         session,
         skip=skip,
         limit=limit,
-        usuario_id=usuario_id, # Passa o filtro de usuario_id para o CRUD
+        usuario_id=filtro_usuario_id, # <--- Usa o filtro_usuario_id determinado pela lógica de permissão
         ambiente_id=ambiente_id,
         status=status,
         data_inicio_ge=data_inicio_ge,
@@ -176,9 +198,7 @@ def listar_reservas(
         data_fim_le=data_fim_le
     )
 
-    # Retorna a lista de objetos Reserva (com relacionamentos carregados pelo CRUD).
-    return reservas # FastAPI serializará para List[ReservaRead].
-
+    return reservas
 
 # PATCH /reservas/{reserva_id} que o usuário comum ou admin pode usar para mudar datas/motivo/ambiente.
 @router.patch("/{reserva_id}", response_model=ReservaRead) # mesmo endpoint do PATCH genérico

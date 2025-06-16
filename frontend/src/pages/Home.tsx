@@ -1,92 +1,47 @@
 // frontend/src/pages/Home.tsx
 
-import React, { useEffect, useState } from 'react'; // Importe useEffect e useState
+import React from 'react'; // Não precisa mais de useEffect, useState para userData, loading, error
 import { useNavigate, Link } from 'react-router-dom';
-import api from '../services/api'; // Importe a instância axios configurada
-
-// Baseado no schema UsuarioRead do backend
-interface UsuarioData {
-  id: string; // UUID como string no frontend
-  nome: string;
-  email: string;
-  tipo: 'user' | 'admin'; // Use os tipos do Enum do backend
-  ativo: boolean;
-  data_criacao: string; // Datas geralmente vêm como string ISO 8601
-  // Adicione outros campos do UsuarioRead se precisar
-}
+import { useAuth } from '../context/AuthContext'; // <--- Importe useAuth
 
 
 function HomePage() {
   const navigate = useNavigate();
-  // State para armazenar os dados do usuário logado
-  const [userData, setUserData] = useState<UsuarioData | null>(null);
-  // State para lidar com estado de carregamento (opcional, mas boa prática)
-  const [loading, setLoading] = useState<boolean>(true);
-  // State para lidar com erros na busca dos dados (menos provável devido ao interceptor 401)
-  const [error, setError] = useState<string | null>(null);
+  // Obtenha o usuário logado e a função logout do contexto
+  const { user, logout, loading } = useAuth(); // <--- Obtenha user, logout, loading do contexto
 
+  // Não precisa mais do useEffect para fetchUserData
+  // Não precisa mais dos states userData, loading, error
 
-  // useEffect para executar a busca dos dados do usuário quando o componente é montado
-  useEffect(() => {
-    // Função assíncrona para buscar os dados do usuário logado
-    const fetchUserData = async () => {
-      try {
-        setLoading(true); // Inicia o estado de carregamento
-        setError(null); // Limpa erros anteriores
-
-        // Chama o endpoint protegido GET /usuarios/me
-        // O interceptor do axios em api.ts adicionará automaticamente o header Authorization
-        const response = await api.get('/usuarios/me');
-
-        // Armazena os dados do usuário recebidos no state
-        setUserData(response.data);
-        console.log('Dados do usuário logado obtidos:', response.data); // Log para verificar
-
-      } catch (err: any) {
-        // Se ocorrer um erro (exceto 401, que é tratado pelo interceptor), exibe mensagem
-        console.error('Erro ao obter dados do usuário:', err);
-        // O interceptor 401 já redireciona para login.
-        // Este catch lidaria com outros erros (400, 403, 404, 500).
-        const errorMessage = err.response?.data?.detail || 'Erro ao carregar dados do usuário.';
-        setError(errorMessage);
-        // Se o erro for 403 e a rota exigir admin, você pode querer exibir uma mensagem específica.
-      } finally {
-        setLoading(false); // Finaliza o estado de carregamento
-      }
-    };
-
-    // Chama a função de busca quando o componente é montado ([])
-    fetchUserData();
-  }, []); // O array vazio [] garante que este useEffect roda apenas uma vez ao montar o componente
-
-
-  // Função para lidar com o logout (como antes)
+  // Função para lidar com o logout (chama a função do contexto)
   const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    console.log('Logout bem-sucedido. Redirecionando para /login...');
-    navigate('/login');
+    logout(); // <--- Chame a função logout do contexto
+    // O contexto logout cuidará de limpar o storage e o estado,
+    // e ProtectedRoute/useEffect em Login cuidará do redirecionamento.
   };
 
-  // Renderização condicional baseada no estado de carregamento e erro
+
+  // Renderização condicional baseada no estado de carregamento DO CONTEXTO
+  // O contexto começa como loading=true para carregar estado inicial do storage.
   if (loading) {
-    return <div>Carregando dados do usuário...</div>; // Exibe mensagem de carregamento
+     // Opcional: Renderizar algo enquanto o contexto carrega o estado inicial
+     return <div>Carregando estado de autenticação...</div>;
   }
 
-  if (error) {
-    return <div style={{ color: 'red' }}>{error}</div>; // Exibe mensagem de erro
-  }
+  // Nota: Se o usuário não estivesse autenticado, ProtectedRoute já teria redirecionado.
+  // Portanto, se chegamos aqui, user DEVE ser != null (a menos que haja um bug no contexto/ProtectedRoute).
+  // Mas é seguro verificar.
 
-  // Se não estiver carregando e não houver erro, e userData existir, exibe o conteúdo principal.
   return (
     <div>
       <h1>Bem-vindo ao Painel de Reservas!</h1>
 
-      {/* Exibir dados do usuário logado */}
-      {userData && ( // Verifica se userData não é null
+      {/* Exibir dados do usuário logado DO CONTEXTO */}
+      {user && ( // Verifica se user não é null
         <div>
-          <h2>Olá, {userData.nome}!</h2> {/* Exibe o nome do usuário */}
-          <p>Email: {userData.email}</p>
-          <p>Tipo de Usuário: {userData.tipo}</p>
+          <h2>Olá, {user.nome}!</h2> {/* Exibe o nome do usuário */}
+          <p>Email: {user.email}</p>
+          <p>Tipo de Usuário: {user.tipo}</p>
           {/* Opcional: Mostrar outras informações do usuário */}
         </div>
       )}
@@ -94,18 +49,26 @@ function HomePage() {
       <p>Esta é a página inicial protegida.</p>
 
       {/* Links para outras páginas protegidas */}
-      <nav> {/* Use nav para um bloco de navegação */}
+      <nav>
          <ul>
             <li><Link to="/ambientes">Ver Ambientes Disponíveis</Link></li>
-            <li><Link to="/solicitar-reserva">Solicitar Nova Reserva</Link></li> {/* <-- Link para a nova página */}
+            <li><Link to="/solicitar-reserva">Solicitar Nova Reserva</Link></li>
             <li><Link to="/minhas-reservas">Ver Minhas Reservas</Link></li>
             <li><Link to="/calendario">Ver Calendário de Reservas</Link></li>
-            {/* TODO: Adicionar links para páginas de administração se o usuário for admin */}
+            {/* TODO: Adicionar links para páginas de administração se o usuário for admin (usando user.tipo) */}
+            {user?.tipo === 'admin' && ( // <--- Exemplo de restrição visual para admin
+                <> {/* Fragmento React */}
+                   <li><Link to="/gerenciar-usuarios">Gerenciar Usuários</Link></li>
+                   <li><Link to="/gerenciar-ambientes">Gerenciar Ambientes</Link></li>
+                   <li><Link to="/gerenciar-reservas">Gerenciar Todas as Reservas</Link></li>
+                   <li><Link to="/historico-reservas">Ver Histórico de Reservas</Link></li>
+                </>
+            )}
          </ul>
       </nav>
 
 
-      {/* TODO: Adicionar conteúdo real do dashboard aqui (ex: resumo das próximas reservas) */}
+      {/* TODO: Adicionar conteúdo real do dashboard aqui */}
 
 
       {/* Botão de Logout */}

@@ -216,21 +216,21 @@ class ReservaBase(SQLModel):
     data_fim: datetime
     motivo: str = Field(max_length=100)
 
-    # Validadores para garantir que data_inicio < data_fim, datas futuras, etc.
-    @validator('data_inicio', 'data_fim')
-    def datas_futuras(cls, v: datetime) -> datetime: # Type hint
-        """Valida se as datas são futuras (comparando com UTC).
-        Converte datas ingênuas de entrada para UTC antes da comparação."""
-        if v.tzinfo is None:
-            v = v.replace(tzinfo=timezone.utc)
+    # # Validadores para garantir que data_inicio < data_fim, datas futuras, etc.
+    # @validator('data_inicio', 'data_fim')
+    # def datas_futuras(cls, v: datetime) -> datetime: # Type hint
+    #     """Valida se as datas são futuras (comparando com UTC).
+    #     Converte datas ingênuas de entrada para UTC antes da comparação."""
+    #     if v.tzinfo is None:
+    #         v = v.replace(tzinfo=timezone.utc)
 
 
 
-        # Agora, compara o valor de entrada (agora ciente de UTC) com a data/hora UTC atual.
-        if v < datetime.now(timezone.utc):
-            raise ValueError('Datas devem ser futuras')
+    #     # Agora, compara o valor de entrada (agora ciente de UTC) com a data/hora UTC atual.
+    #     if v < datetime.now(timezone.utc):
+    #         raise ValueError('Datas devem ser futuras')
 
-        return v # Retorna o valor (agora ciente de fuso horário)
+    #     return v # Retorna o valor (agora ciente de fuso horário)
     
     @validator('data_fim')
     def data_fim_depois_data_inicio(cls, v, values):
