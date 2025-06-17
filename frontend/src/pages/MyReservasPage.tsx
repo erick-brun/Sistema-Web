@@ -103,9 +103,14 @@ function MyReservasPage() {
 
   // Função para lidar com a ação de Cancelar Reserva
   const handleCancel = async (reservaId: number) => {
-    console.log(`Tentando cancelar reserva com ID: ${reservaId}`); // Debug
-     if (!window.confirm("Tem certeza que deseja cancelar esta reserva?")) {
-         return; // Cancela a ação se o usuário não confirmar
+     console.log(`Tentando cancelar reserva com ID: ${reservaId}`); // Debug
+     // debugger; // Opcional
+
+     // **ADICIONADO:** Lógica de confirmação com o usuário
+     if (!window.confirm("Tem certeza que deseja cancelar esta reserva? Esta ação não poderá ser desfeita.")) {
+         // Se o usuário clicar em "Cancelar" na pop-up de confirmação, interrompe a função.
+         console.log(`Cancelamento de reserva ${reservaId} abortado pelo usuário.`); // Debug
+         return;
      }
 
      setCancelingReservaId(reservaId); // Inicia estado de cancelamento para este ID
@@ -113,36 +118,40 @@ function MyReservasPage() {
 
 
      try {
-        // Chama o endpoint para atualizar o status da reserva para CANCELADA
-        // PATCH /reservas/{reserva_id}/status requer ADMIN (backend).
-        // **AJUSTE NECESSÁRIO NO BACKEND:** A rota PATCH /reservas/{reserva_id}/status
-        // DEVERIA permitir que o PROPRIETÁRIO da reserva (não apenas admin)
-        // mude o status para CANCELADA se a reserva for PENDENTE.
-        // Atualmente, só Admin pode mudar status. Precisamos ajustar a lógica de permissão no backend.
-        // POR ENQUANTO, esta chamada só funcionará se o usuário logado for ADMIN.
-        // Se você ajustar o backend, ela funcionará para o dono PENDENTE também.
         console.log(`Chamando API para cancelar reserva ${reservaId}...`); // Debug
-        const response = await api.patch(`/reservas/${reservaId}/status`, { status: 'cancelada' });
+        // **CORREÇÃO FINAL ANTERIOR:** Enviar o nome do campo correto 'novo_status' no corpo JSON.
+        const response = await api.patch(`/reservas/${reservaId}/status`, { novo_status: 'cancelada' }); // <--- CAMPO CORRETO!
         console.log(`API de cancelamento retornou:`, response); // Debug de sucesso
 
-        console.log('Reserva cancelada com sucesso:', response.data);
 
-        // Atualizar a lista de reservas no state para refletir a mudança (ou remover a reserva)
-        // A reserva cancelada é movida para histórico no backend e deletada da tabela principal.
-        // Portanto, ela NÃO estará mais na lista de 'PENDENTE'.
-        // Uma abordagem é simplesmente remover a reserva cancelada da lista local:
+        // Lógica de atualização da lista local após sucesso (remover a reserva cancelada)
         console.log(`Removendo reserva ${reservaId} da lista local...`); // Debug
         setReservas(prevReservas => prevReservas.filter(reserva => reserva.id !== reservaId));
         console.log(`Reserva ${reservaId} removida da lista local.`); // Debug
 
-        // Opcional: Exibir mensagem de sucesso
+
+        // Opcional: Exibir mensagem de sucesso (pode usar um estado de sucesso e exibir no componente)
         // setSuccessMessage(`Reserva ${reservaId} cancelada com sucesso.`);
 
      } catch (err: any) {
-        console.error(`Erro ao cancelar reserva ${reservaId}:`, err);
-        const errorMessage = err.response?.data?.detail || 'Erro ao cancelar reserva.';
-        setError(errorMessage);
-         // Lida com 403 Forbidden (se usuário não tiver permissão no backend)
+        console.error(`Erro no catch de handleCancel para reserva ${reservaId}:`, err); // Debug de erro
+
+        // Lógica para extrair e exibir mensagem de erro (como aprimorado anteriormente)
+        let messageToDisplay = 'Erro desconhecido ao cancelar reserva.';
+        // ... (lógica de extração de mensagem de erro de err.response.data.detail) ...
+        if (err.response && err.response.data && err.response.data.detail) {
+             if (Array.isArray(err.response.data.detail)) {
+                 messageToDisplay = err.response.data.detail.map((e: any) => e.msg).join('; ');
+             } else if (typeof err.response.data.detail === 'string') {
+                 messageToDisplay = err.response.data.detail;
+             } else {
+                 messageToDisplay = err.message;
+             }
+         } else {
+              messageToDisplay = err.message;
+         }
+        setError(messageToDisplay); // Define a mensagem de erro formatada
+
      } finally {
         setCancelingReservaId(null); // Finaliza estado de cancelamento
         console.log(`handleCancel finalizado para reserva ${reservaId}.`); // Debug
