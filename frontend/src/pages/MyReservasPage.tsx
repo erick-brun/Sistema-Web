@@ -1,12 +1,13 @@
 // frontend/src/pages/MyReservasPage.tsx
 
 import React, { useEffect, useState } from 'react';
-import api from '../services/api'; // Importe a instância axios configurada
-// Importe Link ou useNavigate se precisar de navegação
+import api from '../services/api';
+// Importe Link e useNavigate
 import { Link, useNavigate } from 'react-router-dom';
+// Importe useAuth
+import { useAuth } from '../context/AuthContext';
 
 // Reutilize ou defina interfaces para os dados aninhados
-// Requer que UsuarioRead e AmbienteRead tenham sido definidos como interfaces
 interface UsuarioReadData {
   id: string; // UUID como string no frontend
   nome: string;
@@ -20,7 +21,6 @@ interface AmbienteReadData {
   // ... outros campos do AmbienteRead
 }
 
-// Definir uma interface para a estrutura dos dados da reserva
 // Baseado no schema ReservaRead do backend
 interface ReservaData {
   id: number; // ID da reserva
@@ -36,103 +36,149 @@ interface ReservaData {
 }
 
 
-function MyReservasPage() { // Renomeado
-  // State para armazenar a lista de reservas do usuário
+function MyReservasPage() {
+  const navigate = useNavigate();
+  // Obtenha o usuário logado do contexto
+  const { user, loading: authLoading } = useAuth(); // Obtenha o usuário logado e o estado de loading do auth context
+
   const [reservas, setReservas] = useState<ReservaData[]>([]);
-  // State para lidar com estado de carregamento
-  const [loading, setLoading] = useState<boolean>(true);
-  // State para lidar com erros
+  const [loadingReservas, setLoadingReservas] = useState<boolean>(true); // Renomeado para clareza
   const [error, setError] = useState<string | null>(null);
+
+  // State para controlar qual reserva está sendo cancelada (para desabilitar botão temporariamente)
+  const [cancelingReservaId, setCancelingReservaId] = useState<number | null>(null);
+
 
   // useEffect para buscar a lista de reservas do usuário logado
   useEffect(() => {
     const fetchMyReservas = async () => {
       try {
-        setLoading(true); // Inicia o carregamento
-        setError(null); // Limpa erros
+        setLoadingReservas(true); // Inicia o carregamento das reservas
+        setError(null);
 
-        // Precisamos obter o ID do usuário logado para filtrar as reservas.
-        // O ID do usuário logado pode vir do state na página Home (se passado como prop)
-        // ou pode ser obtido chamando GET /usuarios/me aqui novamente.
-        // A forma mais comum é armazenar informações básicas do usuário logado
-        // em um contexto global ou state management ao fazer login.
-        // Para simplificar agora, vamos assumir que você pode obter o ID do usuário
-        // (ex: do LocalStorage, ou de um Context).
-        // NOTA: A rota GET /reservas/ exige ADMIN para listar TODAS.
-        // Precisamos chamar essa rota com o filtro `usuario_id`.
-        // Se o usuário logado for USER, o backend deve permitir filtrar SOMENTE pelo seu próprio ID.
-        // A rota no backend (GET /reservas/) atualmente exige ADMIN para QUALQUER filtro.
-        // **AJUSTE NECESSÁRIO NO BACKEND:** A rota GET /reservas/ deve permitir que
-        // um usuário comum (não admin) a acesse APENAS se o filtro usuario_id FOR O SEU PRÓPRIO ID.
-        // Um admin pode acessar e usar QUALQUER filtro usuario_id.
-        // Por enquanto, assumimos que a rota GET /reservas/ permite essa lógica no backend.
-
-        // Obter o ID do usuário logado (ex: armazenado ao fazer login, ou de um Context API)
-        // Para este exemplo, vamos assumir que você pode obter o ID do usuário logado de alguma forma.
-        // Se você armazenou o objeto completo UsuarioRead no LocalStorage/Context, pode obter o ID de lá.
-        // Ex: const userData = JSON.parse(localStorage.getItem('userData') || 'null');
-        // const userId = userData?.id;
-        // Se apenas o token está no LocalStorage, você teria que decodificar o token (frontend não é seguro para isso)
-        // ou fazer GET /usuarios/me novamente (menos eficiente).
-        // **Melhor Abordagem:** Armazenar o ID do usuário logado (ou o objeto básico UsuarioRead) no LocalStorage/Context ao fazer login.
-
-        // Vamos assumir que o ID do usuário logado está disponível.
-        // Substitua 'SEU_ID_DE_USUARIO_LOGADO' pela forma real de obtê-lo.
-        const userId = localStorage.getItem('loggedInUserId'); // Exemplo: armazenar o ID ao fazer login
-
-        if (!userId) {
-             setError("ID do usuário logado não disponível.");
-             setLoading(false);
-             // Opcional: redirecionar para login se não conseguir obter o ID do usuário logado
-             // navigate('/login');
+        // Precisamos do ID do usuário logado. Obtemos ele do contexto (user.id).
+        // Certifique-se que o usuário está carregado e tem um ID antes de buscar reservas.
+        if (!user?.id) {
+             // Se user for null ou não tiver ID (deveria ser pego pelo ProtectedRoute/AuthContext load)
+             // Isso pode acontecer se o contexto ainda estiver carregando ou falhou ao carregar.
+             // O AuthContext agora tem um estado 'loading'. Esperamos que ele carregue.
+             // Podemos adicionar uma checagem de loading do contexto aqui se necessário,
+             // mas o useEffect com [user?.id] deve ser suficiente.
+             console.log("User ID não disponível, pulando busca de reservas.");
+             setLoadingReservas(false);
              return;
         }
+         console.log("Buscando reservas para usuário:", user.id); // Debug
 
-        // Chama o endpoint para listar as reservas, filtrando pelo ID do usuário logado.
-        // Requer autenticação. A rota GET /reservas/ exige ADMIN por padrão (verificar backend).
-        // Se a lógica de permissão no backend não permitir USER filtrar por si mesmo, este teste falhará com 403.
+        // Chama o endpoint GET /reservas/, filtrando pelo ID do usuário logado.
+        // Esta rota agora permite que usuários comuns filtrem apenas por si mesmos (backend ajustado).
         const response = await api.get('/reservas/', {
           params: {
-            usuario_id: userId, // Passa o ID do usuário logado como query parameter
-            // Opcional: adicionar outros filtros aqui (por status, datas, etc.)
-            // status: 'pendente' // Ex: listar apenas pendentes
+            usuario_id: user.id, // Passa o ID do usuário logado
+            // Opcional: outros filtros (status, datas)
           }
         });
 
-        // Armazena a lista de reservas no state
         setReservas(response.data);
-        console.log('Lista de reservas do usuário obtida:', response.data); // Log
+        console.log('Lista de reservas do usuário obtida:', response.data);
 
       } catch (err: any) {
-        console.error('Erro ao obter lista de reservas:', err);
-        const errorMessage = err.response?.data?.detail || 'Erro ao carregar lista de reservas.';
+        console.error('Erro ao obter lista de minhas reservas:', err);
+        const errorMessage = err.response?.data?.detail || 'Erro ao carregar minhas reservas.';
         setError(errorMessage);
          // O interceptor 401 já redireciona para login.
-         // Este catch lida com outros erros (ex: 403 Forbidden se USER não puder filtrar por si mesmo).
+         // Este catch lida com outros erros (ex: 500, ou 403 se a lógica backend não estiver 100% certa).
       } finally {
-        setLoading(false); // Finaliza o carregamento
+        setLoadingReservas(false); // Finaliza o carregamento
       }
     };
 
-    fetchMyReservas();
-  }, []); // O array vazio [] garante que roda apenas uma vez ao montar
+    // Roda a busca APENAS se o user?.id estiver disponível
+    if (user?.id) {
+      fetchMyReservas();
+    }
+    // Adiciona user?.id como dependência. Se o usuário for carregado no contexto, a busca rodará.
+  }, [user?.id, api]); // Adiciona 'api' como dependência se ela puder mudar (geralmente não muda)
 
 
-  // Função auxiliar para formatar datas para exibição
-  const formatDateTime = (dateTimeString: string) => {
-      const date = new Date(dateTimeString);
-      return date.toLocaleString(); // Formato amigável de data e hora
+  // Função para lidar com a ação de Cancelar Reserva
+  const handleCancel = async (reservaId: number) => {
+    console.log(`Tentando cancelar reserva com ID: ${reservaId}`); // Debug
+     if (!window.confirm("Tem certeza que deseja cancelar esta reserva?")) {
+         return; // Cancela a ação se o usuário não confirmar
+     }
+
+     setCancelingReservaId(reservaId); // Inicia estado de cancelamento para este ID
+     setError(null); // Limpa erros
+
+
+     try {
+        // Chama o endpoint para atualizar o status da reserva para CANCELADA
+        // PATCH /reservas/{reserva_id}/status requer ADMIN (backend).
+        // **AJUSTE NECESSÁRIO NO BACKEND:** A rota PATCH /reservas/{reserva_id}/status
+        // DEVERIA permitir que o PROPRIETÁRIO da reserva (não apenas admin)
+        // mude o status para CANCELADA se a reserva for PENDENTE.
+        // Atualmente, só Admin pode mudar status. Precisamos ajustar a lógica de permissão no backend.
+        // POR ENQUANTO, esta chamada só funcionará se o usuário logado for ADMIN.
+        // Se você ajustar o backend, ela funcionará para o dono PENDENTE também.
+        console.log(`Chamando API para cancelar reserva ${reservaId}...`); // Debug
+        const response = await api.patch(`/reservas/${reservaId}/status`, { status: 'cancelada' });
+        console.log(`API de cancelamento retornou:`, response); // Debug de sucesso
+
+        console.log('Reserva cancelada com sucesso:', response.data);
+
+        // Atualizar a lista de reservas no state para refletir a mudança (ou remover a reserva)
+        // A reserva cancelada é movida para histórico no backend e deletada da tabela principal.
+        // Portanto, ela NÃO estará mais na lista de 'PENDENTE'.
+        // Uma abordagem é simplesmente remover a reserva cancelada da lista local:
+        console.log(`Removendo reserva ${reservaId} da lista local...`); // Debug
+        setReservas(prevReservas => prevReservas.filter(reserva => reserva.id !== reservaId));
+        console.log(`Reserva ${reservaId} removida da lista local.`); // Debug
+
+        // Opcional: Exibir mensagem de sucesso
+        // setSuccessMessage(`Reserva ${reservaId} cancelada com sucesso.`);
+
+     } catch (err: any) {
+        console.error(`Erro ao cancelar reserva ${reservaId}:`, err);
+        const errorMessage = err.response?.data?.detail || 'Erro ao cancelar reserva.';
+        setError(errorMessage);
+         // Lida com 403 Forbidden (se usuário não tiver permissão no backend)
+     } finally {
+        setCancelingReservaId(null); // Finaliza estado de cancelamento
+        console.log(`handleCancel finalizado para reserva ${reservaId}.`); // Debug
+     }
   };
 
 
-  // Renderização condicional
-  if (loading) {
-    return <div>Carregando minhas reservas...</div>;
+  // Função para lidar com a ação de Editar Reserva
+  const handleEdit = (reservaId: number) => {
+      console.log(`Editando reserva ${reservaId}`);
+      // **IMPLEMENTAÇÃO:** Navegar para a página de edição, passando o ID da reserva na URL.
+      // A rota de edição foi definida como /reservas/editar/:reservaId
+      navigate(`/reservas/editar/${reservaId}`); // <--- Navega para a rota de edição com o ID
+  };
+
+
+  // Função auxiliar para formatar datas para exibição (já existente)
+  const formatDateTime = (dateTimeString: string) => {
+      const date = new Date(dateTimeString);
+      // Opcional: Adicionar tratamento para fuso horário se as datas forem UTC no backend
+      // const date = new Date(dateTimeString + 'Z'); // Adicionar 'Z' se for string ISO sem offset, mas é UTC
+      return date.toLocaleString(); // Formato amigável
+  };
+
+
+  // Renderização condicional (loading do AuthContext OU loading das Reservas)
+  if (authLoading || loadingReservas) {
+    return <div>Carregando...</div>; // Exibe mensagem de carregamento
   }
 
   if (error) {
-    return <div style={{ color: 'red' }}>{error}</div>;
+    return <div style={{ color: 'red' }}>{error}</div>; // Exibe mensagem de erro
   }
+
+  // Nota: Se não estiver carregando e não houver erro, e o usuário logado (user) existir,
+  // a lista de reservas pode estar vazia.
 
   return (
     <div>
@@ -143,16 +189,33 @@ function MyReservasPage() { // Renomeado
         <ul>
           {reservas.map(reserva => (
             <li key={reserva.id}>
-              {/* Exibir detalhes da reserva */}
+              {/* Exibir detalhes da reserva (como antes) */}
               <strong>Reserva ID: {reserva.id}</strong> (Status: {reserva.status.toUpperCase()})
-              <p>Ambiente: {reserva.ambiente.nome}</p> {/* Acessando dado aninhado */}
-              <p>Período: {formatDateTime(reserva.data_inicio)} a {formatDateTime(reserva.data_fim)}</p> {/* Formatando datas */}
+              <p>Ambiente: {reserva.ambiente.nome}</p>
+              <p>Período: {formatDateTime(reserva.data_inicio)} a {formatDateTime(reserva.data_fim)}</p>
               <p>Motivo: {reserva.motivo}</p>
               <p>Solicitada em: {formatDateTime(reserva.data_criacao)}</p>
-              {/* Opcional: Exibir o nome do usuário que solicitou (se ReservaRead inclui UsuarioRead) */}
-              {/* <p>Solicitado por: {reserva.usuario.nome}</p> */} {/* Acessando dado aninhado */}
+              <p>Solicitado por: {reserva.usuario.nome}</p> {/* Acessando dado aninhado */}
 
-              {/* TODO: Adicionar botões para Editar/Cancelar (se status for PENDENTE e for o dono) */}
+              {/* TODO: Adicionar botões para Editar/Cancelar (condicionalmente) */}
+              {/* Lógica: Exibir se status for PENDENTE E o usuário logado for o dono da reserva */}
+              {/* Assumindo que a API retorna reserva.usuario.id com o ID do dono */}
+              {reserva.status === 'pendente' && user?.id === reserva.usuario.id && (
+                  <> {/* Fragmento React para agrupar botões */}
+                     {/* Botão Editar */}
+                     {/* Use um Link se a edição for em outra página, ou um botão para modal */}
+                     <button onClick={() => handleEdit(reserva.id)}>Editar</button> {/* Chama handleEdit passando o ID */}
+                     {' '} {/* Espaço entre botões */}
+                     {/* Botão Cancelar */}
+                     <button
+                         onClick={() => handleCancel(reserva.id)} // Chama handleCancel passando o ID
+                         disabled={cancelingReservaId === reserva.id} // Desabilita durante o cancelamento
+                     >
+                         {cancelingReservaId === reserva.id ? 'Cancelando...' : 'Cancelar'} {/* Texto dinâmico */}
+                     </button>
+                  </>
+              )}
+               <p></p> {/* Espaço entre itens da lista */}
             </li>
           ))}
         </ul>
@@ -162,6 +225,10 @@ function MyReservasPage() { // Renomeado
       )}
 
       {/* TODO: Adicionar link ou botão para solicitar uma nova reserva */}
+       <p>
+         <Link to="/solicitar-reserva">Solicitar Nova Reserva</Link> {/* Link para a página de solicitação */}
+       </p>
+
     </div>
   );
 }

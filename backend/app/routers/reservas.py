@@ -43,29 +43,91 @@ router = APIRouter(tags=["reservas"])
 
 
 # =============================================
-# Criar Reserva (Requer Autenticação - Usuário Logado)
+# Criar Reserva (Requer Autenticação - Usuário Logado. Admin pode reservar para outros.)
 # Rota: POST /reservas/
+# **MODIFICADO para aceitar parametro 'reservar_para_usuario_id' para admins**
 # =============================================
 @router.post("/", response_model=ReservaRead, status_code=status.HTTP_201_CREATED)
 # Requer que o usuário esteja logado para criar a reserva.
 def criar_reserva(
-    reserva_create: ReservaCreate, # Dados da reserva (ambiente_id, datas, motivo) vindos do cliente
+    reserva_create: ReservaCreate, # Dados da reserva (ambiente_id, datas, motivo)
     session: Session = Depends(get_session), # Dependência da sessão do DB
-    current_user: Usuario = Depends(get_current_user) # <--- Dependência de segurança! Obtém o usuário logado.
+    current_user: Usuario = Depends(get_current_user), # Obtém o usuário logado
+    # **ADICIONADO:** Parametro de query opcional para admin reservar para outro
+    reservar_para_usuario_id: Optional[UUID] = Query(None, description="ID do usuário para quem a reserva está sendo feita (apenas para admin)")
 ):
     """
     Cria uma nova reserva para um ambiente em um período específico.
-    Requer autenticação (o usuário logado será associado à reserva).
+    Requer autenticação. Usuário comum cria para si mesmo. Admin pode criar para si ou para outro.
     Verifica a disponibilidade antes de criar. Status inicial é PENDENTE.
-    Lança 409 Conflict se o ambiente não estiver disponível.
-    Lança 404 se ambiente_id não existir (se adicionar checagem no CRUD).
+    Lança 409 Conflict se indisponível. Lança 404 se ambiente_id ou reservar_para_usuario_id (se admin) não existir.
+    Lança 403 Forbidden se usuário comum tentar usar reservar_para_usuario_id.
     """
-    # A dependência get_current_user já garantiu que o usuário está logado e injetou o objeto Usuario.
-    # O ID do usuário logado (current_user.id) será passado para a função CRUD.
+    # Determinar qual ID de usuário será associado à reserva.
+    user_id_para_reserva: uuid.UUID = current_user.id # Por padrão, usa o ID do usuário logado
 
-    # Chama a função CRUD para criar a reserva. O CRUD lida com a disponibilidade e salvamento.
-    # Passamos o ID do usuário logado para o CRUD.
-    return crud.criar_reserva(reserva_create, session, current_user.id)
+    # **Lógica de Autorização para reservar_para_usuario_id:**
+    if reservar_para_usuario_id is not None:
+        # Se o parâmetro foi fornecido, verificar se o usuário logado é admin.
+        if current_user.tipo != TipoUsuario.admin:
+            # Se NÃO for admin, nega o acesso.
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Acesso negado. Apenas administradores podem criar reservas para outros usuários."
+            )
+        else:
+            # Se for admin, usar o reservar_para_usuario_id fornecido.
+            # Opcional: Verificar se o usuário com esse ID existe.
+            usuario_para_reserva = session.get(Usuario, reservar_para_usuario_id)
+            if not usuario_para_reserva:
+                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário para quem reservar não encontrado.")
+
+            user_id_para_reserva = reservar_para_usuario_id # Usa o ID fornecido pelo admin
+
+
+    # Chama a função CRUD para criar a reserva, passando o ID determinado pela lógica acima.
+    # **MODIFICAR CHAMADA CRUD:** Passar user_id_para_reserva como argumento.
+    return crud.criar_reserva(reserva_create, session, user_id_para_reserva)
+
+
+# =============================================
+# Listar Histórico de Reservas Pessoais (Acesso Protegido - Usuário Logado)
+# Rota: GET /reservas/historico/me
+# =============================================
+@router.get("/historico/me", response_model=List[HistoricoReservaRead])
+# Requer que o usuário esteja logado (qualquer tipo).
+def listar_meu_historico_reservas_endpoint( # Novo nome para o endpoint
+    session: Session = Depends(get_session),
+    current_user: Usuario = Depends(get_current_user), # <--- Requer usuário logado
+    skip: int = Query(0, description="Número de registros de histórico a pular para paginação"),
+    limit: int = Query(100, description="Número máximo de registros de histórico a retornar"),
+    # Opcional: Adicionar filtros para o histórico pessoal (status, datas...)
+    status: Optional[StatusReserva] = Query(None, description="Filtrar histórico pessoal por status"),
+    data_inicio_ge: Optional[datetime] = Query(None, description="Filtrar histórico pessoal: data início >= este valor"),
+    data_inicio_le: Optional[datetime] = Query(None, description="Filtrar histórico pessoal: data início <= este valor"),
+    data_fim_ge: Optional[datetime] = Query(None, description="Filtrar histórico pessoal: data fim >= este valor"),
+    data_fim_le: Optional[datetime] = Query(None, description="Filtrar histórico pessoal: data fim <= este valor"),
+
+):
+    """
+    Lista os registros de histórico de reservas do usuário logado.
+    Requer autenticação (usuário logado).
+    """
+    # Chama a função CRUD para obter o histórico, passando o ID do usuário logado como filtro obrigatório.
+    historico_reservas = crud.obter_historico_reservas(
+         session,
+         skip=skip,
+         limit=limit,
+         usuario_id=current_user.id, # <--- FORÇA o filtro para o ID do usuário logado
+         ambiente_id=None, # Não permite filtrar histórico pessoal por ambiente_id (a menos que adicione como Query)
+         status=status,
+         data_inicio_ge=data_inicio_ge,
+         data_inicio_le=data_inicio_le,
+         data_fim_ge=data_fim_ge,
+         data_fim_le=data_fim_le
+    )
+
+    return historico_reservas
 
 # endpoint para listar histórico de reservas (GET /reservas/historico). Restrito a Admin.
 @router.get("/historico", response_model=List[HistoricoReservaRead])
@@ -200,84 +262,57 @@ def listar_reservas(
 
     return reservas
 
-# PATCH /reservas/{reserva_id} que o usuário comum ou admin pode usar para mudar datas/motivo/ambiente.
-@router.patch("/{reserva_id}", response_model=ReservaRead) # mesmo endpoint do PATCH genérico
-# Requer autenticação. Pode permitir atualização pelo próprio usuário OU por admin.
-def atualizar_reserva_endpoint( # Renomeado para evitar conflito com a função CRUD
-    reserva_id: int, # Path parameter: ID da reserva a ser atualizado.
-    reserva_update: ReservaUpdate, # Body: Dados para atualização (campos opcionais). Ver schema ReservaUpdate.
-    session: Session = Depends(get_session), # Dependência da sessão do DB
-    current_user: Usuario = Depends(get_current_user) # Dependência para obter o usuário logado.
-):
-    """
-    Atualiza os dados (datas, motivo, ambiente) de uma reserva específica por ID.
-    Requer autenticação. Permitido para o próprio usuário (se PENDENTE) ou admins.
-    Lança 404 se a reserva não for encontrada.
-    Lança 403 Forbidden se a permissão for negada.
-    Lança 409 Conflict se o ambiente não estiver disponível para o novo período.
-    """
-    # Lógica de Autorização e Verificação de Disponibilidade está DENTRO da função crud.atualizar_reserva.
-    # Primeiro, obtemos a reserva existente para passar para a função CRUD.
-    # Nota: A função obter_reserva do CRUD já lida com 404, mas se você quer
-    # que a lógica de permissão no CRUD seja mais eficiente, pode passar apenas o ID
-    # e a função CRUD busca e verifica permissão em uma única operação.
-    # No entanto, a estrutura atual (buscar no router e passar a instância) é clara.
-    reserva_no_db = crud.obter_reserva(session, reserva_id) # Lança 404 se não existir
 
-    # Chama a função CRUD para realizar a atualização.
-    # A função crud.atualizar_reserva lida com permissão, verificação de disponibilidade e o salvamento.
-    updated_reserva = crud.atualizar_reserva(session, reserva_no_db, reserva_update, current_user) # Passa o usuário logado para o CRUD
-
-    return updated_reserva # Retorna o objeto Reserva atualizado.
-
-
-# Usaremos PATCH /{reserva_id}/status e receberemos o novo status no body.
-@router.patch("/{reserva_id}/status", response_model=ReservaRead) # Retorna a reserva com status atualizado
-# Requer que o usuário logado seja um administrador.
-def atualizar_status_reserva_endpoint( # Renomeado para evitar conflito com a função CRUD
-    reserva_id: int, # Path parameter: ID da reserva.
-    novo_status: StatusReserva = Body(..., embed=True, description="Novo status desejado para a reserva"), # Recebe o novo status no body JSON. Usa Body(embed=True) se for apenas um campo no body.
-    session: Session = Depends(get_session), # Dependência da sessão do DB
-    admin_user: Usuario = Depends(get_current_admin) # <--- Dependência de segurança! Requer admin logado.
+# **MODIFICADO para permitir User comum (dono e PENDENTE) CANCELAR**
+@router.patch("/{reserva_id}/status", response_model=ReservaRead)
+# **MODIFICADO:** Requer APENAS autenticação (qualquer usuário logado).
+# A lógica de permissão (Admin vs User dono) está DENTRO da função CRUD.
+def atualizar_status_reserva_endpoint(
+    reserva_id: int,
+    novo_status: StatusReserva = Body(..., embed=True, description="Novo status desejado para a reserva"),
+    session: Session = Depends(get_session),
+    # **MODIFICADO:** Usa get_current_user para obter o usuário logado (seja user ou admin)
+    current_user: Usuario = Depends(get_current_user) # <--- Usa get_current_user!
 ):
     """
     Atualiza o status de uma reserva específica (PENDENTE, CONFIRMADA, CANCELADA, FINALIZADA).
-    Requer autenticação e privilégios de administrador.
-    Move a reserva para o histórico se o status for FINALIZADA ou CANCELADA.
+    Requer autenticação.
+    Permitido para Admin (qualquer status válido) ou Usuário comum (CANCELADA se dono e PENDENTE).
     Lança 404 se a reserva não for encontrada.
-    Lança 403 Forbidden se quem chamar não for admin.
-    Lança 400 Bad Request para transições de status inválidas (ex: CANCELADA para CONFIRMADA).
+    Lança 403 Forbidden se a permissão for negada (lógica no CRUD).
+    Lança 400 Bad Request para transições de status inválidas.
     """
-    # A dependência get_current_admin já garantiu que quem chama é admin.
+    # A lógica de permissão (quem pode ir para qual status) está agora DENTRO da função CRUD.
+    # Passamos o usuário logado para o CRUD para que ele verifique as permissões.
 
-    # Chama a função CRUD para atualizar o status.
-    # O CRUD lida com 404, validação de transição de status, atualização, commit e mover para histórico.
-    updated_reserva = crud.atualizar_status_reserva(session, reserva_id, novo_status, admin_user) # Passa o usuário admin logado para o CRUD (embora o CRUD não use para auth interna)
+    # Chama a função CRUD para atualizar o status. O CRUD lida com TUDO:
+    # 404, permissão (403), validação de transição (400), atualização, commit e mover para histórico.
+    updated_reserva = crud.atualizar_status_reserva(session, reserva_id, novo_status, current_user) # <--- Passa current_user
 
-    return updated_reserva # Retorna o objeto Reserva atualizado.
+    return updated_reserva
 
 
-# deletar_reserva (DELETE /reservas/{reserva_id}).
-@router.delete("/{reserva_id}", response_model=ReservaRead) 
-# Requer autenticação. Implemente lógica de permissão (dono se PENDENTE, ou admin).
-def deletar_reserva_endpoint( # Renomeado para evitar conflito com a função CRUD
-    reserva_id: int, # Path parameter: ID da reserva a ser deletado.
-    session: Session = Depends(get_session), # Dependência da sessão do DB
-    current_user: Usuario = Depends(get_current_user) # <--- Dependência de segurança! Requer autenticação.
-):
-    """
-    Deleta uma reserva específica por ID.
-    Requer autenticação. Permitido para o próprio usuário (se PENDENTE) ou admins.
-    Lança 404 se a reserva não for encontrada.
-    Lança 403 Forbidden se a permissão for negada.
-    """
-    # Lógica de Autorização está DENTRO da função crud.deletar_reserva.
+# # deletar_reserva (DELETE /reservas/{reserva_id}).
+# @router.delete("/{reserva_id}", response_model=ReservaRead) 
+# # Requer autenticação. Implemente lógica de permissão (dono se PENDENTE, ou admin).
+# def deletar_reserva_endpoint( # Renomeado para evitar conflito com a função CRUD
+#     reserva_id: int, # Path parameter: ID da reserva a ser deletado.
+#     session: Session = Depends(get_session), # Dependência da sessão do DB
+#     current_user: Usuario = Depends(get_current_user) # <--- Dependência de segurança! Requer autenticação.
+# ):
+#     """
+#     Deleta uma reserva específica por ID.
+#     Requer autenticação. Permitido para o próprio usuário (se PENDENTE) ou admins.
+#     Lança 404 se a reserva não for encontrada.
+#     Lança 403 Forbidden se a permissão for negada.
+#     """
+#     # Lógica de Autorização está DENTRO da função crud.deletar_reserva.
 
-    # Chama a função CRUD para deletar a reserva. Ela busca, verifica permissão e deleta. Trata 404 e 403.
-    deleted_reserva = crud.deletar_reserva(session, reserva_id, current_user) # Passa o usuário logado para o CRUD
+#     # Chama a função CRUD para deletar a reserva. Ela busca, verifica permissão e deleta. Trata 404 e 403.
+#     deleted_reserva = crud.deletar_reserva(session, reserva_id, current_user) # Passa o usuário logado para o CRUD
 
-    # Retorna o objeto deletado.
-    return deleted_reserva 
+#     # Retorna o objeto deletado.
+#     return deleted_reserva 
 
 
 # Nota: A função mover_reserva_para_historico não tem um endpoint API dedicado.

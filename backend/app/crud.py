@@ -624,30 +624,27 @@ def verificar_disponibilidade_ambiente(
 # Funções CRUD para Reserva (Reserva)
 # =============================================
 
-def criar_reserva(reserva_create: ReservaCreate, session: Session, usuario_id: uuid.UUID) -> Reserva:
+def criar_reserva(reserva_create: ReservaCreate, session: Session, usuario_id_para_reserva: uuid.UUID) -> Reserva: # <--- MODIFICADO: Aceita o ID a ser associado
     """
-    Cria uma nova reserva no banco de dados após verificar a disponibilidade.
+    Cria uma nova reserva no banco de dados para um usuário específico após verificar disponibilidade.
     Define o status inicial como PENDENTE.
 
     Args:
         reserva_create: Dados da reserva (ambiente_id, data_inicio, data_fim, motivo).
         session: Sessão do banco de dados.
-        usuario_id: ID do usuário que está criando a reserva (obtido do token).
+        usuario_id_para_reserva: ID do usuário que será o responsável pela reserva.
 
     Returns:
         A instância do modelo Reserva recém-criada (status PENDENTE).
 
     Raises:
-        HTTPException: Se o ambiente não estiver disponível (status 409 Conflict);
-                       se ocorrer um erro inesperado ao salvar (status 500);
-                       validação se o ambiente_id existe antes de verificar disponibilidade(status 404).
+        HTTPException: Se o ambiente não estiver disponível (409 Conflict),
+                       se ocorrer um erro inesperado ao salvar (500), ou
+                       se ambiente_id não existir (se adicionar checagem).
     """
-    # Verificar se o ambiente com ambiente_id existe.
-    ambiente_existe = session.get(Ambiente, reserva_create.ambiente_id)
-    if not ambiente_existe:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ambiente não encontrado.")
+    # Opcional: Verificar se o ambiente com ambiente_id existe (antes de verificar disponibilidade).
 
-    # 1. Verifica a disponibilidade do ambiente para o período solicitado.
+    # 1. Verifica a disponibilidade do ambiente (como antes).
     is_available = verificar_disponibilidade_ambiente(
         session,
         reserva_create.ambiente_id,
@@ -656,37 +653,28 @@ def criar_reserva(reserva_create: ReservaCreate, session: Session, usuario_id: u
     )
 
     if not is_available:
-        logger.warning(f"Tentativa de criar reserva para ambiente {reserva_create.ambiente_id} em {reserva_create.data_inicio}-{reserva_create.data_fim} - INDISPONÍVEL.")
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, # 409: Conflito
-            detail="O ambiente não está disponível para o período solicitado."
-        )
+        # ... (lógica de erro 409) ...
+        raise HTTPException(...)
 
     # 2. Cria uma instância do modelo ORM Reserva.
-    #    Define usuario_id do usuário logado e status como PENDENTE.
+    #    Usa o ID passado como parâmetro para associar a reserva.
     nova_reserva = Reserva(
         ambiente_id=reserva_create.ambiente_id,
-        usuario_id=usuario_id, # Usa o ID do usuário logado
+        usuario_id=usuario_id_para_reserva, # <--- USA o ID passado como parâmetro
         data_inicio=reserva_create.data_inicio,
         data_fim=reserva_create.data_fim,
         motivo=reserva_create.motivo,
-        status=StatusReserva.PENDENTE, # Define o status inicial como PENDENTE
-        # data_criacao usará o default=datetime.now() do modelo
+        status=StatusReserva.PENDENTE,
     )
-    # Forma alternativa: nova_reserva = Reserva.model_validate(reserva_create, update={'usuario_id': usuario_id, 'status': StatusReserva.PENDENTE})
 
-    # 3. Adiciona a nova reserva à sessão e salva.
+    # 3. Adiciona a nova reserva à sessão e salva (como antes).
     session.add(nova_reserva)
     try:
         session.commit()
-        session.refresh(nova_reserva) # Obtém o ID gerado
+        session.refresh(nova_reserva)
     except Exception as e:
-        session.rollback()
-        logger.error(f"Erro inesperado ao salvar nova reserva: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ocorreu um erro interno no servidor ao criar a reserva."
-        )
+        # ... (lógica de erro 500) ...
+        raise HTTPException(...)
 
     return nova_reserva
 
@@ -884,127 +872,155 @@ def atualizar_reserva(
 
     return reserva_existente
 
-# Implementar atualizar_status_reserva (apenas por admin/sistema).
+
 def atualizar_status_reserva( 
     session: Session,
     reserva_id: int, # ID da reserva a ter o status atualizado
     novo_status: StatusReserva, # O novo status desejado
-    admin_user: Usuario # Dependência get_current_admin para garantir permissão (passado do router)
+    # **ADICIONADO:** Passar o usuário logado para verificar permissões
+    current_user: Usuario # <--- ADICIONADO: A instância do usuário logado (obtido do router)
 ) -> Reserva: # Retorna a reserva com o status atualizado
     """
     Atualiza o status de uma reserva específica.
-    Requer privilégios de administrador.
+    Requer privilégios adequados: Admin sempre pode mudar o status.
+    Usuário comum pode mudar status para CANCELADA SE for o dono E status atual for PENDENTE.
     Verifica transições de status válidas (regra de negócio).
-    Move a reserva para o histórico se o novo status for FINALIZADA ou CANCELADA e a deleta da tabela principal.
+    Move a reserva para o histórico e a deleta da tabela principal se o novo status for FINALIZADA ou CANCELADA.
 
     Args:
         session: Sessão do banco de dados.
         reserva_id: ID da reserva a ser atualizada.
         novo_status: O novo StatusReserva desejado.
-        admin_user: A instância do usuário admin logado (garantida pelo router).
+        current_user: A instância do usuário logado (obtida do router, seja ele user ou admin).
 
     Returns:
         A instância do modelo Reserva com o status atualizado.
 
     Raises:
         HTTPException: Se a reserva não for encontrada (status 404),
+                       se a permissão for negada (403 Forbidden),
                        se a transição de status for inválida (400 Bad Request), ou
                        se ocorrer um erro inesperado ao salvar (status 500).
     """
-    # Lógica de Autorização: A dependência get_current_admin no router já cuidou disso.
-    # Se chamar esta função diretamente sem a dependência, pode adicionar a checagem de admin.
-
     # 1. Obter a reserva por ID (lidando com 404).
     reserva_a_atualizar = obter_reserva(session, reserva_id) # Lança 404 se não existir
 
-    # 2. Verificar se a transição de status é válida (regra de negócio).
+    # 2. Lógica de Autorização: Quem pode mudar o status para o novo_status desejado?
+    is_admin = current_user.tipo == TipoUsuario.admin
+    is_owner = reserva_a_atualizar.usuario_id == current_user.id # Verificar se é o dono da reserva
+
+    # Regra de Permissão para Mudar STATUS:
+    # - Admin SEMPRE pode mudar para QUALQUER status (respeitando regras de transição).
+    # - Usuário comum (não admin) SÓ pode mudar para CANCELADA, E SOMENTE SE for o DONO E o status atual for PENDENTE.
+    can_update_status = False
+
+    if is_admin:
+        can_update_status = True # Admin pode fazer qualquer mudança de status (respeitando regras de transição)
+    elif is_owner and reserva_a_atualizar.status == StatusReserva.PENDENTE and novo_status == StatusReserva.CANCELADA:
+        # Usuário comum (dono) pode CANCELAR sua própria reserva SE ela estiver PENDENTE.
+        can_update_status = True
+    # Nenhuma outra mudança de status é permitida para usuários comuns (ex: CONFIRMAR, FINALIZAR).
+
+    if not can_update_status:
+        # Se a ação de mudar para este status específico não é permitida para este usuário.
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso negado. Você não tem permissão para alterar o status desta reserva para este valor."
+        )
+
+
+    # 3. Verificar se a transição de status é válida (regra de negócio global, mesmo para admin).
     # Regra: Não permitir ir de CANCELADA para CONFIRMADA.
     if reserva_a_atualizar.status == StatusReserva.CANCELADA and novo_status == StatusReserva.CONFIRMADA:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Não é possível confirmar uma reserva cancelada."
         )
-    # Adicionar outras regras de transição se necessário (ex: de PENDENTE só pode ir para CONFIRMADA ou CANCELADA).
+    # Adicione outras regras de transição se necessário (ex: só pode ir de PENDENTE para CONFIRMADA ou CANCELADA).
     # if reserva_a_atualizar.status == StatusReserva.PENDENTE and novo_status not in [StatusReserva.CONFIRMADA, StatusReserva.CANCELADA]:
     #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Não é possível ir do status PENDENTE para {novo_status}.")
     # etc.
 
-    # 3. Atualizar o campo status da reserva.
+
+    # 4. Atualizar o campo status da reserva.
     reserva_a_atualizar.status = novo_status
 
-    # 4. Adicionar a instância modificada à sessão e commitar.
+    # 5. Adicionar a instância modificada à sessão e commitar.
     session.add(reserva_a_atualizar)
     try:
         session.commit()
         session.refresh(reserva_a_atualizar)
 
-        # 5. Se o novo status for FINALIZADA ou CANCELADA, mover para o histórico E DELETAR.
+        # 6. Se o novo status for FINALIZADA ou CANCELADA, mover para o histórico E DELETAR.
         if novo_status in [StatusReserva.FINALIZADA, StatusReserva.CANCELADA]:
             logger.info(f"Reserva {reserva_a_atualizar.id} atualizada para status {novo_status}. Movendo para histórico e deletando...")
             # Chama a função para mover para o histórico.
             mover_reserva_para_historico(session, reserva_a_atualizar) # Esta função agora deleta a original
+            logger.info(f"Reserva {reserva_a_atualizar.id} movida para histórico e deletada da tabela principal.")
+
 
     except Exception as e:
         session.rollback()
         logger.error(f"Erro inesperado ao atualizar status da reserva {reserva_id}: {e}", exc_info=True)
+        # Use valor numérico 500 se a importação de status ainda for problemática
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro ao atualizar status da reserva.")
 
-    # 6. Retorna a instância da reserva atualizada.
+    # 7. Retorna a instância da reserva atualizada.
     return reserva_a_atualizar
 
-def deletar_reserva(
-    session: Session,
-    reserva_id: int,
-    current_user: Usuario # Para verificar permissão
-) -> Reserva:
-    """
-    Deleta uma reserva do banco de dados pelo seu ID.
-    Requer permissão adequada (geralmente o próprio usuário se PENDENTE, ou admin).
+# def deletar_reserva(
+#     session: Session,
+#     reserva_id: int,
+#     current_user: Usuario # Para verificar permissão
+# ) -> Reserva:
+#     """
+#     Deleta uma reserva do banco de dados pelo seu ID.
+#     Requer permissão adequada (geralmente o próprio usuário se PENDENTE, ou admin).
 
-    Args:
-        session: Sessão do banco de dados.
-        reserva_id: O ID (int) da reserva a ser deletada.
-        current_user: A instância do usuário logado para checar permissões.
+#     Args:
+#         session: Sessão do banco de dados.
+#         reserva_id: O ID (int) da reserva a ser deletada.
+#         current_user: A instância do usuário logado para checar permissões.
 
-    Returns:
-        A instância do modelo Reserva que foi deletada.
+#     Returns:
+#         A instância do modelo Reserva que foi deletada.
 
-    Raises:
-        HTTPException: Se a reserva não for encontrada (404),
-                       se a permissão para deletar for negada (403 Forbidden), ou
-                       se ocorrer um erro inesperado ao salvar (500).
-    """
-    # 1. Obter a reserva para garantir que ela existe (obter_reserva já lida com 404).
-    reserva_a_deletar = obter_reserva(session, reserva_id) # Lança 404 se não existir
+#     Raises:
+#         HTTPException: Se a reserva não for encontrada (404),
+#                        se a permissão para deletar for negada (403 Forbidden), ou
+#                        se ocorrer um erro inesperado ao salvar (500).
+#     """
+#     # 1. Obter a reserva para garantir que ela existe (obter_reserva já lida com 404).
+#     reserva_a_deletar = obter_reserva(session, reserva_id) # Lança 404 se não existir
 
-    # 2. Lógica de Autorização: Apenas o proprietário da reserva (se PENDENTE) OU um administrador pode deletar.
-    # Regra: Não pode deletar se já foi CONFIRMADA, CANCELADA ou FINALIZADA, A MENOS QUE seja admin.
-    is_owner = reserva_a_deletar.usuario_id == current_user.id
-    is_admin = current_user.tipo == TipoUsuario.admin
+#     # 2. Lógica de Autorização: Apenas o proprietário da reserva (se PENDENTE) OU um administrador pode deletar.
+#     # Regra: Não pode deletar se já foi CONFIRMADA, CANCELADA ou FINALIZADA, A MENOS QUE seja admin.
+#     is_owner = reserva_a_deletar.usuario_id == current_user.id
+#     is_admin = current_user.tipo == TipoUsuario.admin
 
-    if not ((is_owner and reserva_a_deletar.status == StatusReserva.PENDENTE) or is_admin):
-        # Se não for admin E (não for o dono OU não estiver PENDENTE)
-         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso negado. Você só pode deletar suas reservas pendentes ou precisa ser admin."
-         )
+#     if not ((is_owner and reserva_a_deletar.status == StatusReserva.PENDENTE) or is_admin):
+#         # Se não for admin E (não for o dono OU não estiver PENDENTE)
+#          raise HTTPException(
+#             status_code=status.HTTP_403_FORBIDDEN,
+#             detail="Acesso negado. Você só pode deletar suas reservas pendentes ou precisa ser admin."
+#          )
 
 
-    # 3. Prepara para deletar.
-    session.delete(reserva_a_deletar)
-    try:
-        session.commit()
-        # Retornamos o objeto antes do commit, mas ele pode não ser totalmente útil depois.
-    except Exception as e:
-        session.rollback()
-        logger.error(f"Erro inesperado ao deletar reserva {reserva_id}: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ocorreu um erro interno no servidor ao deletar a reserva."
-        )
+#     # 3. Prepara para deletar.
+#     session.delete(reserva_a_deletar)
+#     try:
+#         session.commit()
+#         # Retornamos o objeto antes do commit, mas ele pode não ser totalmente útil depois.
+#     except Exception as e:
+#         session.rollback()
+#         logger.error(f"Erro inesperado ao deletar reserva {reserva_id}: {e}", exc_info=True)
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail="Ocorreu um erro interno no servidor ao deletar a reserva."
+#         )
 
-    # 4. Retorna a instância da reserva que foi deletada.
-    return reserva_a_deletar
+#     # 4. Retorna a instância da reserva que foi deletada.
+#     return reserva_a_deletar
 
 # Implementar mover_reserva_para_historico.
 def mover_reserva_para_historico(session: Session, reserva_original: Reserva) -> HistoricoReserva:

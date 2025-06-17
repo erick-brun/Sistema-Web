@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import api from '../services/api'; // Importe a instância axios configurada
-import { useNavigate } from 'react-router-dom'; // Para redirecionamento após sucesso
+import { useParams, useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom'; // Para link de volta
 // Opcional: Importar componentes de data/hora picker (ex: @mui/x-date-pickers)
 // import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
@@ -26,8 +26,20 @@ interface ReservaFormData {
   motivo: string;
 }
 
+// Interface para dados de Reserva Read (para carregar os dados existentes para edição)
+interface ReservaReadData { // Baseado no schema ReservaRead do backend
+  id: number;
+  data_inicio: string; // ISO 8601 string
+  data_fim: string;    // ISO 8601 string
+  motivo: string;
+  ambiente: { id: number; nome: string; /* ... */ }; // Apenas os dados relevantes aninhados
+  // ... outros campos que precisa carregar para pré-popular ou exibir
+}
 
-function RequestReservaPage() { // Renomeado
+function RequestReservaPage() {
+  // **MODIFICAR:** Use useParams para obter reservaId (será string ou undefined)
+  const { reservaId } = useParams<{ reservaId: string }>(); // Pode ser string ou undefined
+
   const navigate = useNavigate();
 
   // State para os dados do formulário de reserva
@@ -38,77 +50,118 @@ function RequestReservaPage() { // Renomeado
     motivo: '',
   });
 
-  // State para a lista de ambientes disponíveis para popular o seletor
+  // State para a lista de ambientes (como antes)
   const [ambientes, setAmbientes] = useState<AmbienteData[]>([]);
-  // State para lidar com estado de carregamento (para ambientes e submissão)
-  const [loadingAmbientes, setLoadingAmbientes] = useState<boolean>(true);
-  const [submitting, setSubmitting] = useState<boolean>(false); // Estado para submissão do formulário
 
-  // State para lidar com mensagens de erro e sucesso
+  // **MODIFICAR:** State para lidar com estado de carregamento (ambientes, RESERVA EXISTENTE, submissão)
+  const [loadingInitialData, setLoadingInitialData] = useState<boolean>(true); // Carregando ambientes OU dados da reserva existente
+  const [submitting, setSubmitting] = useState<boolean>(false);
+
+  // State para lidar com mensagens de erro e sucesso (como antes)
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
 
-  // useEffect para carregar a lista de ambientes quando o componente é montado
+  // **NOVO useEffect:** Para carregar dados da reserva EXISTENTE se em modo edição
+  useEffect(() => {
+      const fetchReservaDetails = async () => {
+          try {
+              setLoadingInitialData(true); // Inicia carregamento
+              setError(null);
+
+              // **Verifica se estamos no modo edição (reservaId existe)**
+              if (reservaId) {
+                  console.log(`Modo edição: Carregando dados da reserva ${reservaId}`);
+                  // Chama o endpoint GET /reservas/{reserva_id} para obter os detalhes da reserva existente
+                  // Esta rota requer autenticação
+                  const response = await api.get(`/reservas/${reservaId}`);
+                  const reservaData: ReservaReadData = response.data;
+
+                  // **Pré-popula o formulário com os dados da reserva existente**
+                  setFormData({
+                      ambiente_id: reservaData.ambiente.id, // Usar o ID do ambiente aninhado
+                      data_inicio: reservaData.data_inicio,
+                      data_fim: reservaData.data_fim,
+                      motivo: reservaData.motivo,
+                  });
+                  console.log("Formulário pré-populado para edição:", reservaData);
+
+              } else {
+                  // Modo criação: Nenhuma ação necessária aqui, apenas marca como carregado inicial
+                  console.log("Modo criação: Formulário vazio.");
+              }
+
+          } catch (err: any) {
+              console.error(`Erro ao carregar dados da reserva ${reservaId} para edição:`, err);
+              const errorMessage = err.response?.data?.detail || 'Erro ao carregar dados da reserva para edição.';
+              setError(errorMessage);
+               // Opcional: Redirecionar se 404 (reserva não encontrada)
+               if (err.response && err.response.status === 404) {
+                   navigate('/minhas-reservas'); // Redireciona para minhas reservas
+               }
+          } finally {
+              setLoadingInitialData(false); // Finaliza carregamento inicial (da reserva, se edição)
+          }
+      };
+
+      fetchReservaDetails();
+  }, [reservaId, navigate]); // Dependências: roda quando reservaId muda, e inclui navigate
+
+
+  // **useEffect existente:** Para carregar a lista de ambientes (agora roda SEMPRE, tanto em criação quanto edição)
+  // É importante que os ambientes estejam carregados para popular o select em AMBOS os modos.
   useEffect(() => {
     const fetchAmbientes = async () => {
       try {
-        setLoadingAmbientes(true);
-        setError(null);
-
-        // Chama o endpoint GET /ambientes/ (agora requer autenticação).
-        // Opcional: Filtrar apenas ambientes ativos aqui ou no backend.
-        const response = await api.get('/ambientes/', { params: { ativo: true } }); // Filtrar por ativo=true
+        // Não sobrescreve loadingInitialData aqui, pois o useEffect acima gerencia isso.
+        // Poderia usar um estado de loading separado para apenas ambientes se necessário.
+        const response = await api.get('/ambientes/', { params: { ativo: true } });
 
         setAmbientes(response.data);
         console.log('Lista de ambientes para solicitação obtida:', response.data);
 
       } catch (err: any) {
         console.error('Erro ao obter lista de ambientes para solicitação:', err);
+        // Erro ao carregar ambientes é um erro que impede criação/edição.
         const errorMessage = err.response?.data?.detail || 'Erro ao carregar ambientes disponíveis.';
         setError(errorMessage);
-         // O interceptor 401 já redireciona para login se necessário.
       } finally {
-        setLoadingAmbientes(false);
+        // loadingInitialData é gerenciado pelo useEffect acima
       }
     };
 
     fetchAmbientes();
+    // Não adicionar reservaId como dependência aqui, pois ambientes só precisam carregar uma vez.
   }, []); // Roda apenas uma vez ao montar
 
 
-  // Função para lidar com a mudança nos inputs do formulário
+  // Função para lidar com a mudança nos inputs do formulário (como antes)
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      // Tratar campos numéricos se necessário (ex: converter value para number)
-      [name]: name === 'ambiente_id' ? Number(value) : value,
+      [name]: name === 'ambiente_id' ? Number(value) : value, // Converte ambiente_id para number
     });
   };
 
-  // Função para lidar com submissão do formulário de reserva
+  // Função para lidar com submissão do formulário de reserva (AGORA LIDA COM CRIAÇÃO E EDIÇÃO)
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); // Previne o comportamento padrão
+    e.preventDefault();
 
-    setError(null); // Limpa mensagens
+    setError(null);
     setSuccessMessage(null);
-    setSubmitting(true); // Inicia estado de submissão
+    setSubmitting(true);
 
-    // Validação básica no frontend
+    // Validação básica no frontend (como antes)
     if (!formData.ambiente_id || !formData.data_inicio || !formData.data_fim || !formData.motivo) {
       setError('Por favor, preencha todos os campos.');
       setSubmitting(false);
       return;
     }
-    // Opcional: Validação de datas (futuras, início < fim) aqui também,
-    // embora o backend já faça isso via validadores de schema ReservaBase.
-
+     // TODO: Adicionar validação de datas no frontend (futuras, início < fim).
 
     try {
-      // Prepara os dados para enviar. O backend espera um objeto com ambiente_id, data_inicio, data_fim, motivo.
-      // As datas/horas devem estar no formato ISO 8601 (strings).
-      // Se estiver usando input type="datetime-local", o .value já é uma string ISO 8601 (sem offset).
+      // Prepara os dados para enviar.
       const dataToSend = {
           ambiente_id: formData.ambiente_id,
           data_inicio: formData.data_inicio,
@@ -116,27 +169,52 @@ function RequestReservaPage() { // Renomeado
           motivo: formData.motivo,
       };
 
-      // Envia a requisição POST para o endpoint de criação de reserva.
-      // POST /reservas/ requer autenticação (usuário logado).
-      const response = await api.post('/reservas/', dataToSend); // Envia JSON
+      let response;
+      let successMessageText;
 
-      // Se a requisição for bem-sucedida (status 201 Created)
-      if (response.status === 201) {
-        console.log('Reserva criada com sucesso:', response.data);
-        setSuccessMessage('Reserva solicitada com sucesso! Aguardando confirmação.');
-        // Opcional: Limpar o formulário após sucesso
-        setFormData({ ambiente_id: '', data_inicio: '', data_fim: '', motivo: '' });
-        // Opcional: Redirecionar para a página de "Minhas Reservas"
-        // setTimeout(() => { navigate('/minhas-reservas'); }, 2000);
+      // **MODIFICADO:** Lógica para escolher entre POST (criar) e PATCH (editar)
+      if (reservaId) {
+          // Modo edição: Chamar endpoint PATCH para atualizar a reserva
+          console.log(`Modo edição: Enviando atualização para reserva ${reservaId}`);
+          // PATCH /reservas/{reserva_id} requer autenticação.
+          // O backend (CRUD) lida com permissão (dono se PENDENTE ou admin).
+          // O backend também re-verifica disponibilidade se datas/ambiente mudarem.
+          response = await api.patch(`/reservas/${reservaId}`, dataToSend); // Envia JSON
+          successMessageText = 'Reserva atualizada com sucesso!';
+
       } else {
-         setError('Erro inesperado ao solicitar reserva.');
+          // Modo criação: Chamar endpoint POST para criar nova reserva
+          console.log("Modo criação: Enviando solicitação de nova reserva.");
+          // POST /reservas/ requer autenticação.
+          // O backend (CRUD) lida com a disponibilidade e status inicial PENDENTE.
+          response = await api.post('/reservas/', dataToSend); // Envia JSON
+          successMessageText = 'Reserva solicitada com sucesso! Aguardando confirmação.';
+      }
+
+
+      // Se a requisição for bem-sucedida (status 200 OK para PATCH, 201 Created para POST)
+      // Axios considera qualquer 2xx como sucesso por padrão.
+      if (response.status === 200 || response.status === 201) {
+        console.log('Operação de reserva bem-sucedida:', response.data);
+        setSuccessMessage(successMessageText);
+        // Opcional: Limpar o formulário APENAS SE FOR CRIAÇÃO
+        if (!reservaId) {
+             setFormData({ ambiente_id: '', data_inicio: '', data_fim: '', motivo: '' });
+        }
+        // Redirecionar para a página de "Minhas Reservas" APÓS SUCESSO (em ambos os modos)
+        // Pode adicionar um pequeno delay para o usuário ver a mensagem de sucesso
+        setTimeout(() => { navigate('/minhas-reservas'); }, 1500); // Redireciona após 1.5 segundos
+
+      } else {
+         // Teoricamente, o axios lança erro para status != 2xx. Este else é mais para segurança.
+         setError('Erro inesperado ao processar reserva.');
       }
 
     } catch (err: any) {
-      console.error('Solicitação de reserva falhou:', err);
+      console.error('Operação de reserva falhou:', err);
 
-      // Lida com erros específicos do backend (ex: 409 Conflict - indisponível, 400 Bad Request - validação)
-      const errorMessage = err.response?.data?.detail || 'Erro desconhecido ao solicitar reserva.';
+      // Lida com erros específicos do backend (ex: 409 Conflict, 403 Forbidden, 400 Bad Request)
+      const errorMessage = err.response?.data?.detail || 'Erro desconhecido ao processar reserva.';
       setError(errorMessage);
 
     } finally {
@@ -145,45 +223,56 @@ function RequestReservaPage() { // Renomeado
   };
 
 
-  // Renderização condicional baseada nos estados de carregamento e erro
-  if (loadingAmbientes) {
-    return <div>Carregando ambientes disponíveis...</div>;
+  // **MODIFICAR Renderização Condicional:** Lidar com carregamento inicial (de ambientes OU dados da reserva)
+  if (loadingInitialData) {
+    return <div>Carregando formulário de reserva...</div>;
   }
 
-  if (error && !successMessage) { // Exibe erro apenas se não houver sucesso
-    return <div style={{ color: 'red' }}>{error}</div>;
-  }
+  // Nota: Erros ao carregar a reserva existente (404, etc.) são tratados pelo redirecionamento no useEffect.
+  // Erros na submissão são exibidos acima do formulário.
+  // Erros ao carregar a lista de ambientes também são exibidos acima do formulário.
+
+  // Determinar o título da página e o texto do botão de submit com base no modo (criação vs edição)
+  const pageTitle = reservaId ? 'Editar Reserva Existente' : 'Solicitar Nova Reserva';
+  const submitButtonText = submitting ? 'Enviando...' : (reservaId ? 'Atualizar Reserva' : 'Solicitar Reserva');
+
 
   return (
     <div>
-      <h1>Solicitar Nova Reserva</h1>
+      {/* **MODIFICADO:** Título dinâmico */}
+      <h1>{pageTitle}</h1>
 
+      {/* Exibe mensagens de erro ou sucesso (como antes) */}
       {successMessage && <p style={{ color: 'green' }}>{successMessage}</p>}
       {error && <p style={{ color: 'red' }}>{error}</p>}
 
-      {/* Formulário de solicitação de reserva */}
+      {/* Formulário de solicitação/edição de reserva */}
+      {/* **MODIFICADO:** Botão de submit com texto dinâmico e estado disabled */}
       <form onSubmit={handleSubmit}>
+        {/* Campo Ambiente */}
         <div>
           <label htmlFor="ambiente_id">Ambiente:</label>
           <select
             id="ambiente_id"
-            name="ambiente_id" // Nome deve corresponder à chave no state/formData
+            name="ambiente_id"
             value={formData.ambiente_id}
-            onChange={handleChange} // Usa a mesma função handleChange
+            onChange={handleChange}
             required
+            // **Opcional:** Desabilitar o seletor de ambiente no modo edição?
+            // Geralmente não se muda o ambiente em uma reserva existente. Mas a regra de negócio permite.
+            // disabled={!!reservaId} // Desabilita se reservaId existir
           >
             <option value="">-- Selecione um Ambiente --</option>
             {ambientes.map(ambiente => (
-              // O value deve ser o ID do ambiente (número), mas o select HTML lida com strings, então convertemos no handleChange
               <option key={ambiente.id} value={ambiente.id}>{ambiente.nome} (Cap: {ambiente.capacidade})</option>
             ))}
           </select>
+          {/* Opcional: Mostrar o nome do ambiente em texto no modo edição se o select estiver desabilitado */}
+          {/* {!!reservaId && ambiente && <p>Ambiente selecionado: {ambiente.nome}</p>} */}
         </div>
 
+        {/* Campos de Data/Hora e Motivo (como antes) */}
         <div>
-          {/* Use input type="datetime-local" para facilitar a seleção de data e hora */}
-          {/* Nota: O valor é uma string ISO 8601 sem informações de fuso horário */}
-          {/* O backend (validadores de schema) lida com a conversão para UTC */}
           <label htmlFor="data_inicio">Data e Hora de Início:</label>
           <input
             type="datetime-local"
@@ -209,28 +298,30 @@ function RequestReservaPage() { // Renomeado
 
         <div>
           <label htmlFor="motivo">Motivo da Reserva:</label>
-          <textarea // Usar textarea para motivo longo
+          <textarea
             id="motivo"
             name="motivo"
             value={formData.motivo}
             onChange={handleChange}
             required
-            rows={4} // Opcional: definir número de linhas visíveis
-            maxLength={100} // Opcional: limitar caracteres como no backend (o backend valida também)
+            rows={4}
+            maxLength={100}
           />
         </div>
 
         {/* Botão para enviar o formulário */}
-        <button type="submit" disabled={submitting || loadingAmbientes}>
-           {submitting ? 'Enviando...' : 'Solicitar Reserva'} {/* Exibe texto diferente durante submissão */}
+        <button type="submit" disabled={submitting || loadingInitialData || ambientes.length === 0}> {/* Desabilitar se ambientes não carregaram */}
+           {submitButtonText} {/* Texto dinâmico */}
         </button>
 
       </form>
 
-      {/* Link para voltar para a página inicial ou de reservas */}
-      <p>
-        <Link to="/minhas-reservas">Ver minhas reservas</Link> | <Link to="/home">Voltar para o início</Link>
-      </p>
+      {/* Link para voltar */}
+       <p>
+         {/* Decida para onde voltar: lista de minhas reservas ou início */}
+         <Link to="/minhas-reservas">Ver minhas reservas</Link> | <Link to="/home">Voltar para o início</Link>
+       </p>
+
     </div>
   );
 }

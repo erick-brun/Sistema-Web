@@ -88,8 +88,29 @@ function App() { // Componente App, renderizado dentro do Provedor de Autentica�
               }
             />
 
-            {/* TODO: Adicionar rotas protegidas para páginas de Administração (Gerenciar Usuários, Ambientes, Reservas, Histórico) */}
-            {/* Essas rotas precisarão verificar se o usuário é ADMIN (além de logado). */}
+            {/* Rota protegida para a página de Solicitação de Reserva (Criação) */}
+            <Route
+              path="/solicitar-reserva" // URL para CRIAR nova reserva
+              element={
+                <ProtectedRoute>
+                  <RequestReservaPage /> {/* Renderiza o componente */}
+                </ProtectedRoute>
+              }
+            />
+
+            {/* **ADICIONAR:** Rota protegida para a página de Edição de Reserva */}
+            <Route
+              path="/reservas/editar/:reservaId" // URL para EDITAR reserva existente, com parâmetro ID
+              element={
+                <ProtectedRoute>
+                  <RequestReservaPage /> {/* **REUTILIZA O MESMO COMPONENTE** */}
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* TODO: Adicionar rotas protegidas para páginas de Administração */}
+            {/* ... */}
 
 
             {/* Rota padrão para a raiz '/' (redireciona para login) */}
