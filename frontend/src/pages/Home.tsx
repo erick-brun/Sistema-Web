@@ -62,7 +62,7 @@ function HomePage() {
                    <li><Link to="/gerenciar-usuarios">Gerenciar Usuários</Link></li>
                    <li><Link to="/gerenciar-ambientes">Gerenciar Ambientes</Link></li>
                    <li><Link to="/gerenciar-reservas">Gerenciar Todas as Reservas</Link></li>
-                   <li><Link to="/historico-reservas">Ver Histórico de Reservas</Link></li>
+                   <li><Link to="/gerenciar-historico-reservas">Gerenciar Histórico de Reservas</Link></li>
                 </>
             )}
          </ul>

@@ -4,7 +4,7 @@ import React from 'react';
 // Importe os componentes de roteamento
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-// Importe suas páginas
+// Importa páginas
 import Login from './pages/Login';
 import Home from './pages/Home';
 import CadastroUsuario from './pages/CadastroUsuario';
@@ -13,134 +13,87 @@ import AmbienteDetailPage from './pages/AmbienteDetailPage';
 import MyReservasPage from './pages/MyReservasPage';
 import CalendarPage from './pages/CalendarPage';
 import RequestReservaPage from './pages/RequestReservaPage';
-import HistoryPage from './pages/HistoryPage';
+import HistoryPage from './pages/HistoryPage'; // Histórico Pessoal
 import ManageUsersPage from './pages/ManageUsersPage';
 import ManageAmbientesPage from './pages/ManageAmbientesPage';
-// TODO: Importar outras páginas de admin/histórico conforme criar
+import ManageReservasPage from './pages/ManageReservasPage';
+import HistoryPageAdmin from './pages/HistoryPageAdmin'; // Histórico geral para admins
 
 // Importe seu componente de Rota Protegida
 import ProtectedRoute from './components/ProtectedRoute';
 
 
-function App() { // Componente App, renderizado dentro do Provedor de Autenticação
+// Se o roteamento estiver dentro de App.tsx (renderizado por main.tsx com AuthProvider)
+function App() { // Componente App
     return (
-        // BrowserRouter habilita o roteamento (agora dentro de App)
         <BrowserRouter>
-          {/* Routes define a área onde as rotas serão renderizadas */}
           <Routes>
-            {/* Rota para a página de Login (PÚBLICA) */}
-            <Route path="/login" element={<Login />} /> {/* Rota para a página de Login */}
-            {/* Rota para a página de Cadastro (PÚBLICA) */}
+            {/* Rotas Públicas */}
+            <Route path="/login" element={<Login />} />
             <Route path="/cadastro-usuario" element={<CadastroUsuario />} />
 
-            {/* 
-              Rotas PROTEGIDAS (exigem autenticação).
-              Usamos o componente ProtectedRoute para verificar a autenticação.
-            */}
+            {/* Rotas Protegidas - Envolva cada uma com ProtectedRoute */}
             <Route
               path="/home"
-              element={
-                <ProtectedRoute>
-                  <Home /> {/* Renderiza a página Home APENAS se autenticado */}
-                </ProtectedRoute>
-              }
+              element={<ProtectedRoute><Home /></ProtectedRoute>}
             />
-
+            {/* ... outras rotas protegidas existentes ... */}
             <Route
               path="/ambientes"
-              element={
-                <ProtectedRoute>
-                  <AmbientesPage />
-                </ProtectedRoute>
-              }
+              element={<ProtectedRoute><AmbientesPage /></ProtectedRoute>}
             />
-
+            <Route
+              path="/ambientes/:ambienteId"
+              element={<ProtectedRoute><AmbienteDetailPage /></ProtectedRoute>}
+            />
              <Route
-               path="/ambientes/:ambienteId"
-               element={
-                 <ProtectedRoute>
-                   <AmbienteDetailPage />
-                 </ProtectedRoute>
-               }
-             />
-
+              path="/reservas/editar/:reservaId" // Rota de edição
+              element={<ProtectedRoute><RequestReservaPage /></ProtectedRoute>}
+            />
             <Route
               path="/minhas-reservas"
-              element={
-                <ProtectedRoute>
-                  <MyReservasPage />
-                </ProtectedRoute>
-              }
+              element={<ProtectedRoute><MyReservasPage /></ProtectedRoute>}
             />
-
             <Route
-              path="/calendario"
-              element={
-                <ProtectedRoute>
-                  <CalendarPage />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="/solicitar-reserva"
-              element={
-                <ProtectedRoute>
-                  <RequestReservaPage />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Rota protegida para a página de Solicitação de Reserva (Criação) */}
-            <Route
-              path="/solicitar-reserva" // URL para CRIAR nova reserva
-              element={
-                <ProtectedRoute>
-                  <RequestReservaPage /> {/* Renderiza o componente */}
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Rota protegida para a página de Edição de Reserva */}
-            <Route
-              path="/reservas/editar/:reservaId" // URL para EDITAR reserva existente, com parâmetro ID
-              element={
-                <ProtectedRoute>
-                  <RequestReservaPage /> {/* **REUTILIZA O MESMO COMPONENTE** */}
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* Rota protegida para a página de Histórico Pessoal */}
+               path="/calendario"
+               element={<ProtectedRoute><CalendarPage /></ProtectedRoute>}
+             />
              <Route
-               path="/historico-reservas" // <--- Caminho da rota
-               element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} // <--- Usa ProtectedRoute e HistoryPage
+               path="/solicitar-reserva"
+               element={<ProtectedRoute><RequestReservaPage /></ProtectedRoute>}
+             />
+             <Route
+               path="/historico-reservas" // Histórico Pessoal
+               element={<ProtectedRoute><HistoryPage /></ProtectedRoute>}
+             />
+             <Route
+               path="/gerenciar-usuarios"
+               element={<ProtectedRoute><ManageUsersPage /></ProtectedRoute>}
+             />
+             <Route
+               path="/gerenciar-ambientes"
+               element={<ProtectedRoute><ManageAmbientesPage /></ProtectedRoute>}
+             />
+             <Route
+               path="/gerenciar-reservas"
+               element={<ProtectedRoute><ManageReservasPage /></ProtectedRoute>}
              />
 
-            {/* Rota protegida para a página de Gerenciar Usuários (Admin) */}
+             {/* Rota protegida para a página de Histórico Geral (Admin) */}
              <Route
-               path="/gerenciar-usuarios" // <--- Caminho da rota
-               element={<ProtectedRoute><ManageUsersPage /></ProtectedRoute>} // <--- Usa ProtectedRoute e ManageUsersPage
-             />
-
-            {/* Rota protegida para a página de Gerenciar Ambientes (Admin) */}
-             <Route
-               path="/gerenciar-ambientes" // <--- Caminho da rota
-               element={<ProtectedRoute><ManageAmbientesPage /></ProtectedRoute>} // <--- Usa ProtectedRoute e ManageAmbientesPage
+               path="/gerenciar-historico-reservas" // <--- Caminho da rota para Histórico Geral
+               element={<ProtectedRoute><HistoryPageAdmin /></ProtectedRoute>} // <--- Usa ProtectedRoute e HistoryPageAdmin
              />
 
 
-            {/*TODO: Adicionar outras rotas protegidas para páginas de Administração (Gerenciar Todas as Reservas, Histórico Geral) */}
+            {/* TODO: Adicionar outras rotas protegidas se necessário */}
             {/* ... */}
 
-
             {/* Rota padrão para a raiz '/' (redireciona para login) */}
-             <Route path="/" element={<Navigate to="/login" replace />} />
-
+            <Route path="/" element={<Navigate to="/login" replace />} />
           </Routes>
         </BrowserRouter>
     );
 }
 
-export default App;
+export default App; // Exporta App se o roteamento estiver nele

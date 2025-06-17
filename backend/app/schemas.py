@@ -297,7 +297,9 @@ class HistoricoReservaRead(SQLModel):
     # Se for novo PK, adicionar Optional[int] = Field(default=None, primary_key=True) (como no modelo)
     id: int # ID do histórico (se for PK, adicionar Optional e default=None)
     ambiente_id: int # ID do ambiente no histórico
+    nome_amb: str
     usuario_id: uuid.UUID # ID do usuário no histórico
+    nome_usu: str
     data_inicio: datetime
     data_fim: datetime
     data_criacao: datetime

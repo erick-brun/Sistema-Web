@@ -1106,7 +1106,9 @@ def mover_reserva_para_historico(session: Session, reserva_original: Reserva) ->
     historico_entry = HistoricoReserva(
         id=reserva_original.id, # Usa o ID da reserva original como PK do histórico
         ambiente_id=reserva_original.ambiente_id,
+        nome_amb=reserva_original.ambiente.nome,
         usuario_id=reserva_original.usuario_id,
+        nome_usu=reserva_original.usuario.nome,
         data_inicio=reserva_original.data_inicio,
         data_fim=reserva_original.data_fim,
         data_criacao=reserva_original.data_criacao,
@@ -1148,7 +1150,7 @@ def mover_reserva_para_historico(session: Session, reserva_original: Reserva) ->
 
     return historico_entry
 
-def obter_historico_reservas(
+def obter_historico_reservas( # Nome corrigido para 'obter'
     session: Session,
     skip: int = 0,
     limit: int = 100,
@@ -1159,8 +1161,11 @@ def obter_historico_reservas(
     data_inicio_ge: Optional[datetime] = None,
     data_inicio_le: Optional[datetime] = None,
     data_fim_ge: Optional[datetime] = None,
-    data_fim_le: Optional[datetime] = None
-) -> List[HistoricoReserva]: # Retorna lista de HistoricoReserva, não HistoricoReservaRead (schema é usado no router)
+    data_fim_le: Optional[datetime] = None,
+    # **ADICIONADO:** Parâmetros opcionais para filtrar por nome de ambiente e usuário
+    nome_amb: Optional[str] = None, # <--- ADICIONADO
+    nome_usu: Optional[str] = None  # <--- ADICIONADO
+) -> List[HistoricoReserva]: # Retorna lista de HistoricoReserva
     """
     Retorna uma lista paginada de registros de histórico de reservas, opcionalmente filtrada.
 
@@ -1175,12 +1180,14 @@ def obter_historico_reservas(
         data_inicio_le: Opcional. Filtra histórico por data_inicio <= este valor.
         data_fim_ge: Opcional. Filtra histórico por data_fim >= este valor.
         data_fim_le: Opcional. Filtra histórico por data_fim <= este valor.
+        nome_amb: Opcional. Filtra histórico por nome de ambiente (busca parcial, case-insensitive).
+        nome_usu: Opcional. Filtra histórico por nome de usuário (busca parcial, case-insensitive).
+
 
     Returns:
         Uma lista de instâncias do modelo HistoricoReserva.
     """
     # Cria a query base para selecionar HistoricoReserva.
-    # Nota: HistoricoReserva NÃO tem relacionamentos no modelo que precisem ser carregados com selectinload.
     query = select(HistoricoReserva)
 
     # Aplica filtros baseados nos parâmetros fornecidos.
@@ -1202,13 +1209,21 @@ def obter_historico_reservas(
     if data_fim_le is not None:
         query = query.where(HistoricoReserva.data_fim <= data_fim_le)
 
+    # **ADICIONADO:** Filtros por nome de ambiente e usuário (busca parcial, case-insensitive)
+    # Usamos .ilike() para busca case-insensitive e '%valor%' para busca parcial.
+    if nome_amb is not None:
+        query = query.where(HistoricoReserva.nome_amb.ilike(f"%{nome_amb}%")) # Busca parcial case-insensitive
+    if nome_usu is not None:
+        query = query.where(HistoricoReserva.nome_usu.ilike(f"%{nome_usu}%")) # Busca parcial case-insensitive
+
+
     # Aplica paginação.
     query = query.offset(skip).limit(limit)
 
     # Executa a query e obtém a lista.
     historico_reservas: List[HistoricoReserva] = session.exec(query).all()
 
-    return historico_reservas # Retorna a lista de objetos HistoricoReserva.
+    return historico_reservas
 
 
 # =============================================

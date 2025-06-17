@@ -132,27 +132,28 @@ def listar_meu_historico_reservas_endpoint( # Novo nome para o endpoint
 # endpoint para listar histórico de reservas (GET /reservas/historico). Restrito a Admin.
 @router.get("/historico", response_model=List[HistoricoReservaRead])
 # Requer que o usuário logado seja um administrador.
-def listar_historico_reservas_endpoint( 
-    session: Session = Depends(get_session), # Dependência da sessão do DB
-    admin_user: Usuario = Depends(get_current_admin), # <--- Dependência de segurança! Requer admin logado.
+def listar_historico_reservas_endpoint( # Nome renomeado
+    session: Session = Depends(get_session),
+    admin_user: Usuario = Depends(get_current_admin), # Requer admin logado
     skip: int = Query(0, description="Número de registros de histórico a pular para paginação"),
     limit: int = Query(100, description="Número máximo de registros de histórico a retornar"),
-    # TODO: Adicionar Query parameters para filtros de histórico (usuario_id, ambiente_id, etc.)
-    usuario_id: Optional[UUID] = Query(None, description="Filtrar histórico por ID de usuário (apenas para admin)"),
+    # Query parameters para filtros (usuario_id, ambiente_id, status, período)
+    usuario_id: Optional[UUID] = Query(None, description="Filtrar histórico por ID de usuário"),
     ambiente_id: Optional[int] = Query(None, description="Filtrar histórico por ID de ambiente"),
     status: Optional[StatusReserva] = Query(None, description="Filtrar histórico por status"),
-    # Adicionar filtros de data se necessário, como data_inicio_ge, data_fim_le, etc.
     data_inicio_ge: Optional[datetime] = Query(None, description="Filtrar: data início da reserva >= este valor"),
     data_inicio_le: Optional[datetime] = Query(None, description="Filtrar: data início da reserva <= este valor"),
     data_fim_ge: Optional[datetime] = Query(None, description="Filtrar: data fim da reserva >= este valor"),
     data_fim_le: Optional[datetime] = Query(None, description="Filtrar: data fim da reserva <= este valor"),
-
+    # **ADICIONADO:** Query parameters para filtrar por nome de ambiente e usuário
+    nome_amb: Optional[str] = Query(None, description="Filtrar por nome de ambiente (busca parcial)"), # <--- ADICIONADO
+    nome_usu: Optional[str] = Query(None, description="Filtrar por nome de usuário (busca parcial)")  # <--- ADICIONADO
 ):
     """
     Lista todos os registros de histórico de reservas com paginação e filtros.
     Requer autenticação e privilégios de administrador.
     """
-    # Chama a função CRUD para obter a lista de histórico de reservas com filtros.
+    # Chama a função CRUD para obter a lista de histórico de reservas com todos os filtros.
     historico_reservas = crud.obter_historico_reservas(
          session,
          skip=skip,
@@ -163,11 +164,14 @@ def listar_historico_reservas_endpoint(
          data_inicio_ge=data_inicio_ge,
          data_inicio_le=data_inicio_le,
          data_fim_ge=data_fim_ge,
-         data_fim_le=data_fim_le
+         data_fim_le=data_fim_le,
+         # **ADICIONADO:** Passa os novos filtros para a função CRUD
+         nome_amb=nome_amb, # <--- ADICIONADO
+         nome_usu=nome_usu  # <--- ADICIONADO
     )
 
-    # Retorna a lista de objetos HistoricoReserva.
-    return historico_reservas # FastAPI serializará para List[HistoricoReservaRead].
+    # Retorna a lista de objetos HistoricoReserva. O response_model fará a serialização.
+    return historico_reservas
 
 # =============================================
 # Obter Reserva por ID 

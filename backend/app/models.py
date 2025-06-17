@@ -136,7 +136,9 @@ class HistoricoReserva(SQLModel, table=True):
     # Tabela de histórico (cópia de reservas passadas)
     id: int = Field(primary_key=True)  # Pode ser o mesmo ID da reserva original
     ambiente_id: int  # Sem FK, pois o ambiente pode ter sido deletado
+    nome_amb: str
     usuario_id: uuid.UUID   # Sem FK, pois o usuário pode ter sido deletado
+    nome_usu: str
     data_inicio: datetime
     data_fim: datetime
     data_criacao: datetime
