@@ -15,6 +15,7 @@ import CalendarPage from './pages/CalendarPage';
 import RequestReservaPage from './pages/RequestReservaPage';
 import HistoryPage from './pages/HistoryPage';
 import ManageUsersPage from './pages/ManageUsersPage';
+import ManageAmbientesPage from './pages/ManageAmbientesPage';
 // TODO: Importar outras páginas de admin/histórico conforme criar
 
 // Importe seu componente de Rota Protegida
@@ -123,7 +124,14 @@ function App() { // Componente App, renderizado dentro do Provedor de Autentica�
                element={<ProtectedRoute><ManageUsersPage /></ProtectedRoute>} // <--- Usa ProtectedRoute e ManageUsersPage
              />
 
-            {/* TODO: Adicionar outras rotas protegidas para páginas de Administração (Gerenciar Ambientes, Reservas, etc.) */}
+            {/* Rota protegida para a página de Gerenciar Ambientes (Admin) */}
+             <Route
+               path="/gerenciar-ambientes" // <--- Caminho da rota
+               element={<ProtectedRoute><ManageAmbientesPage /></ProtectedRoute>} // <--- Usa ProtectedRoute e ManageAmbientesPage
+             />
+
+
+            {/*TODO: Adicionar outras rotas protegidas para páginas de Administração (Gerenciar Todas as Reservas, Histórico Geral) */}
             {/* ... */}
 
 

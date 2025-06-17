@@ -437,6 +437,34 @@ def deletar_ambiente(session: Session, ambiente_id: int) -> Ambiente:
     # Retorna a instância do ambiente que foi deletada.
     return ambiente
 
+def ambiente_tem_reservas(session: Session, ambiente_id: int) -> bool:
+    """
+    Verifica se um ambiente tem alguma reserva associada (ativa ou histórica).
+
+    Args:
+        session: Sessão do banco de dados.
+        ambiente_id: O ID do ambiente a verificar.
+
+    Returns:
+        True se o ambiente tiver pelo menos uma reserva (na tabela Reserva ou HistoricoReserva), False caso contrário.
+    """
+    # Verificar na tabela Reserva (onde a restrição FK está)
+    reserva_ativa = session.exec(
+        select(Reserva.id).where(Reserva.ambiente_id == ambiente_id).limit(1) # Limit 1 para eficiência
+    ).first()
+
+    if reserva_ativa:
+        return True
+
+    # Se você quer verificar histórico também (embora a restrição FK seja só na tabela Reserva), descomente e ajuste:
+    # historico_entry = session.exec(
+    #     select(HistoricoReserva.id).where(HistoricoReserva.ambiente_id == ambiente_id).limit(1)
+    # ).first()
+    # if historico_entry:
+    #     return True
+
+    # Se não encontrou em Reserva (e não verificou histórico ou não encontrou lá)
+    return False
 
 # =============================================
 # Funções Específicas (Autenticação, Promoção/Demote, etc.)

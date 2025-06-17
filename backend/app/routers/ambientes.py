@@ -148,4 +148,35 @@ def deletar_ambiente(
     # Retorna o objeto deletado.
     return deleted_ambiente
 
-# ... (outras rotas específicas para Ambiente, se necessário, por exemplo, para listar apenas ambientes ativos, etc.) ... 
+# =============================================
+# Verificar se Ambiente Tem Reservas (Restrito a Admin)
+# Rota: GET /ambientes/{ambiente_id}/tem-reservas
+# =============================================
+@router.get("/{ambiente_id}/tem-reservas", tags=["ambientes"], status_code=status.HTTP_204_NO_CONTENT) # Usar 204 No Content se tiver, ou 404 Not Found se não tiver
+# Requer que o usuário logado seja um administrador.
+def ambiente_tem_reservas_endpoint( # Nome do endpoint
+    ambiente_id: int, # Path parameter: ID do ambiente a verificar.
+    session: Session = Depends(get_session), # Dependência da sessão do DB
+    admin_user: Usuario = Depends(get_current_admin) # <--- Dependência de segurança! Requer admin logado.
+):
+    """
+    Verifica se um ambiente específico tem reservas associadas.
+    Retorna 204 No Content se tiver reservas.
+    Retorna 404 Not Found se NÃO tiver reservas.
+    Requer autenticação e privilégios de administrador.
+    Lança 404 se o próprio ambiente não for encontrado (opcional, obter_ambiente no CRUD faria isso).
+    """
+    # A dependência get_current_admin já garantiu que quem chama é admin.
+
+    # Opcional: Verificar se o ambiente existe antes de verificar reservas.
+    # ambiente_existe = crud.obter_ambiente(session, ambiente_id) # Lançará 404 se não encontrar o ambiente
+
+    # Chama a função CRUD para verificar reservas.
+    tem_reservas = crud.ambiente_tem_reservas(session, ambiente_id)
+
+    if tem_reservas:
+        # Se tem reservas, retorna 204 No Content.
+        return status.HTTP_204_NO_CONTENT
+    else:
+        # Se NÃO tem reservas, retorna 404 Not Found.
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ambiente não tem reservas associadas.")
