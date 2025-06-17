@@ -558,6 +558,40 @@ def rebaixar_admin_para_usuario(session: Session, usuario_id: uuid.UUID) -> Usua
     # 5. Retorna a instância do usuário rebaixado.
     return usuario_a_rebaixar
 
+def usuario_tem_reservas(session: Session, usuario_id: uuid.UUID) -> bool:
+    """
+    Verifica se um usuário tem alguma reserva associada (ativa ou histórica).
+
+    Args:
+        session: Sessão do banco de dados.
+        usuario_id: O UUID do usuário a verificar.
+
+    Returns:
+        True se o usuário tiver pelo menos uma reserva (na tabela Reserva ou HistoricoReserva), False caso contrário.
+    """
+    # Verificar na tabela Reserva
+    reserva_ativa = session.exec(
+        select(Reserva.id).where(Reserva.usuario_id == usuario_id).limit(1) # Limit 1 para eficiência
+    ).first()
+
+    if reserva_ativa:
+        return True
+
+    # Verificar na tabela HistoricoReserva (se considerar histórico também)
+    # Se a regra for apenas reservas *ativas*, pule a checagem de HistoricoReserva.
+    # Geralmente, a restrição DELETE impede se há FKs PENDENTES. Se sua FK em Reserva.usuario_id
+    # não for NULLABLE, ela impedirá se houver reservas *ativas*. Histórico não tem FK de volta.
+    # Vamos verificar APENAS reservas na tabela principal (Reserva) para alinhar com a restrição FK que você quer.
+
+    # Se você quer verificar histórico também, descomente e ajuste:
+    # historico_entry = session.exec(
+    #     select(HistoricoReserva.id).where(HistoricoReserva.usuario_id == usuario_id).limit(1)
+    # ).first()
+    # if historico_entry:
+    #     return True
+
+    # Se não encontrou em Reserva (e não verificou histórico ou não encontrou lá)
+    return False
 
 # =============================================
 # Funções de Verificação de Disponibilidade

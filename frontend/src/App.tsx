@@ -13,6 +13,8 @@ import AmbienteDetailPage from './pages/AmbienteDetailPage';
 import MyReservasPage from './pages/MyReservasPage';
 import CalendarPage from './pages/CalendarPage';
 import RequestReservaPage from './pages/RequestReservaPage';
+import HistoryPage from './pages/HistoryPage';
+import ManageUsersPage from './pages/ManageUsersPage';
 // TODO: Importar outras páginas de admin/histórico conforme criar
 
 // Importe seu componente de Rota Protegida
@@ -98,7 +100,7 @@ function App() { // Componente App, renderizado dentro do Provedor de Autentica�
               }
             />
 
-            {/* **ADICIONAR:** Rota protegida para a página de Edição de Reserva */}
+            {/* Rota protegida para a página de Edição de Reserva */}
             <Route
               path="/reservas/editar/:reservaId" // URL para EDITAR reserva existente, com parâmetro ID
               element={
@@ -109,7 +111,19 @@ function App() { // Componente App, renderizado dentro do Provedor de Autentica�
             />
 
 
-            {/* TODO: Adicionar rotas protegidas para páginas de Administração */}
+            {/* Rota protegida para a página de Histórico Pessoal */}
+             <Route
+               path="/historico-reservas" // <--- Caminho da rota
+               element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} // <--- Usa ProtectedRoute e HistoryPage
+             />
+
+            {/* Rota protegida para a página de Gerenciar Usuários (Admin) */}
+             <Route
+               path="/gerenciar-usuarios" // <--- Caminho da rota
+               element={<ProtectedRoute><ManageUsersPage /></ProtectedRoute>} // <--- Usa ProtectedRoute e ManageUsersPage
+             />
+
+            {/* TODO: Adicionar outras rotas protegidas para páginas de Administração (Gerenciar Ambientes, Reservas, etc.) */}
             {/* ... */}
 
 

@@ -54,6 +54,7 @@ function HomePage() {
             <li><Link to="/ambientes">Ver Ambientes Disponíveis</Link></li>
             <li><Link to="/solicitar-reserva">Solicitar Nova Reserva</Link></li>
             <li><Link to="/minhas-reservas">Ver Minhas Reservas</Link></li>
+            <li><Link to="/historico-reservas">Ver meu Histórico de Reservas</Link></li>
             <li><Link to="/calendario">Ver Calendário de Reservas</Link></li>
             {/* TODO: Adicionar links para páginas de administração se o usuário for admin (usando user.tipo) */}
             {user?.tipo === 'admin' && ( // <--- Exemplo de restrição visual para admin

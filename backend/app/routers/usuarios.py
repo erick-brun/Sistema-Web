@@ -199,6 +199,38 @@ def rebaixar_usuario_endpoint( # Nome do endpoint
 
 
 # =============================================
+# Verificar se Usuário Tem Reservas (Restrito a Admin)
+# Rota: GET /usuarios/{usuario_id}/tem-reservas
+# =============================================
+@router.get("/{usuario_id}/tem-reservas", tags=["usuarios"], status_code=status.HTTP_204_NO_CONTENT) # Usar 204 No Content se tiver reservas, ou 404 Not Found se não tiver
+# Requer que o usuário logado seja um administrador.
+def usuario_tem_reservas_endpoint( # Nome do endpoint
+    usuario_id: UUID, # Path parameter: UUID do usuário a verificar.
+    session: Session = Depends(get_session), # Dependência da sessão do DB
+    admin_user: Usuario = Depends(get_current_admin) # <--- Dependência de segurança! Requer admin logado.
+):
+    """
+    Verifica se um usuário específico tem reservas associadas.
+    Retorna 204 No Content se tiver reservas.
+    Retorna 404 Not Found se NÃO tiver reservas.
+    Requer autenticação e privilégios de administrador.
+    """
+    # A dependência get_current_admin já garantiu que quem chama é admin.
+
+    # Chama a função CRUD para verificar reservas.
+    tem_reservas = crud.usuario_tem_reservas(session, usuario_id)
+
+    if tem_reservas:
+        # Se tem reservas, retorna 204 No Content.
+        # O corpo da resposta é vazio para 204.
+        return status.HTTP_204_NO_CONTENT
+    else:
+        # Se NÃO tem reservas, retorna 404 Not Found.
+        # Isso é uma forma de indicar "recurso não encontrado" no sentido de "não há reservas para este usuário".
+        # Também evita retornar dados booleanos no corpo para 404.
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuário não tem reservas associadas.")
+
+# =============================================
 # Atualizar Usuário (Acesso Protegido - Para o Próprio Usuário OU Admin)
 # Rota: PATCH /{usuario_id} (dentro deste router) -> /usuarios/{usuario_id} (URL final)
 # =============================================
