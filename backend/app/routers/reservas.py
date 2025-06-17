@@ -263,6 +263,36 @@ def listar_reservas(
     return reservas
 
 
+# PATCH /reservas/{reserva_id} que o usuário comum ou admin pode usar para mudar datas/motivo/ambiente.
+@router.patch("/{reserva_id}", response_model=ReservaRead) # mesmo endpoint do PATCH genérico
+# Requer autenticação. Pode permitir atualização pelo próprio usuário OU por admin.
+def atualizar_reserva_endpoint( # Renomeado para evitar conflito com a função CRUD
+    reserva_id: int, # Path parameter: ID da reserva a ser atualizado.
+    reserva_update: ReservaUpdate, # Body: Dados para atualização (campos opcionais). Ver schema ReservaUpdate.
+    session: Session = Depends(get_session), # Dependência da sessão do DB
+    current_user: Usuario = Depends(get_current_user) # Dependência para obter o usuário logado.
+):
+    """
+    Atualiza os dados (datas, motivo, ambiente) de uma reserva específica por ID.
+    Requer autenticação. Permitido para o próprio usuário (se PENDENTE) ou admins.
+    Lança 404 se a reserva não for encontrada.
+    Lança 403 Forbidden se a permissão for negada.
+    Lança 409 Conflict se o ambiente não estiver disponível para o novo período.
+    """
+    # Lógica de Autorização e Verificação de Disponibilidade está DENTRO da função crud.atualizar_reserva.
+    # Primeiro, obtemos a reserva existente para passar para a função CRUD.
+    # Nota: A função obter_reserva do CRUD já lida com 404, mas se você quer
+    # que a lógica de permissão no CRUD seja mais eficiente, pode passar apenas o ID
+    # e a função CRUD busca e verifica permissão em uma única operação.
+    # No entanto, a estrutura atual (buscar no router e passar a instância) é clara.
+    reserva_no_db = crud.obter_reserva(session, reserva_id) # Lança 404 se não existir
+
+    # Chama a função CRUD para realizar a atualização.
+    # A função crud.atualizar_reserva lida com permissão, verificação de disponibilidade e o salvamento.
+    updated_reserva = crud.atualizar_reserva(session, reserva_no_db, reserva_update, current_user) # Passa o usuário logado para o CRUD
+
+    return updated_reserva # Retorna o objeto Reserva atualizado.
+
 # **MODIFICADO para permitir User comum (dono e PENDENTE) CANCELAR**
 @router.patch("/{reserva_id}/status", response_model=ReservaRead)
 # **MODIFICADO:** Requer APENAS autenticação (qualquer usuário logado).
