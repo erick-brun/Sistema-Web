@@ -5,7 +5,7 @@
 # Importações
 # =============================================
 import logging # Importa o módulo de logging padrão do Python
-from sqlalchemy.exc import IntegrityError # Importa exceção específica do SQLAlchemy
+from sqlalchemy.exc import IntegrityError, ProgrammingError # Importa exceção específica do SQLAlchemy
 from sqlmodel import Session, select, and_, or_ # Importa o necessário do SQLModel para consultas
 from fastapi import HTTPException, status # Importa exceções HTTP do FastAPI
 from typing import List, Optional # Importa tipos para type hints (listas e valores opcionais)
@@ -19,7 +19,7 @@ from app.schemas import UsuarioCreate, UsuarioUpdate, AmbienteCreate, AmbienteUp
 from app.security import hash_password, verify_password
 
 # Importações para carregar relacionamentos (útil para ReservaRead)
-from sqlalchemy.orm import selectinload # Importe selectinload
+from sqlalchemy.orm import selectinload, join # Importe selectinload
 
 # =============================================
 # Configuração do Logger 
@@ -1282,29 +1282,35 @@ def obter_reservas_dashboard(
     periodo_fim_dt = datetime.combine(data_alvo, turno_times[1], tzinfo=timezone.utc)
 
     # 2. Criar a query para obter reservas.
-    # Busca reservas que:
-    # - Estão no status PENDENTE ou CONFIRMADA.
-    # - Sobreponham o período do turno no dia alvo (usando a lógica de sobreposição: A < D e C < B).
-    # - Carrega os relacionamentos 'ambiente' e 'usuario' para obter os nomes.
-    query = select(Reserva).where(
+    # **CORREÇÃO:** Selecionar do modelo Reserva e explicitamente juntar com Ambiente
+    # para que a tabela Ambiente esteja na cláusula FROM.
+    # Usamos join() para o join explícito.
+    query = select(Reserva).join(Ambiente).where( # <--- CORRIGIDO: select(Reserva).join(Ambiente)
         Reserva.status.in_([StatusReserva.PENDENTE, StatusReserva.CONFIRMADA]),
-        # Condição de sobreposição: Reserva começa antes do FIM do período do turno E o período do turno começa antes do FIM da reserva.
         and_(
             Reserva.data_inicio < periodo_fim_dt,
             Reserva.data_fim > periodo_inicio_dt
         )
     ).options(
-        selectinload(Reserva.ambiente), # Carregar ambiente para nome
-        selectinload(Reserva.usuario)  # Carregar usuário para nome
+        # Manter selectinload para carregar os relacionamentos após a consulta principal.
+        # O join já garante que ambiente está disponível para a ordenação,
+        # mas selectinload otimiza o carregamento dos dados do objeto relacionado.
+        selectinload(Reserva.ambiente),
+        selectinload(Reserva.usuario)
     )
 
-    # Opcional: Ordenar as reservas (ex: por hora de início)
-    query = query.order_by(Reserva.data_inicio)
+    # **CORREÇÃO:** Ordenar por Ambiente.nome e Reserva.data_inicio
+    query = query.order_by(Ambiente.nome, Reserva.data_inicio) # <--- CORRIGIDO (já estava correto, mas agora o JOIN permite)
 
 
     # 3. Executar a query.
-    reservas_no_turno: List[Reserva] = session.exec(query).all()
-
+    # Adicionar tratamento de erro para ProgrammingError, caso a query ainda esteja inválida.
+    try:
+        reservas_no_turno: List[Reserva] = session.exec(query).all()
+    except ProgrammingError as e:
+        logger.error(f"Erro de programação na query do dashboard: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno ao consultar reservas para dashboard.")
+    
     # 4. Adaptar os resultados para o schema de saída ReservaDashboard.
     # Criar manualmente objetos que correspondam ao schema ReservaDashboard,
     # extraindo os dados dos relacionamentos carregados.
@@ -1315,6 +1321,7 @@ def obter_reservas_dashboard(
             reservas_dashboard.append(ReservaDashboard(
                 # id=reserva.id, # Opcional
                 ambiente_nome=reserva.ambiente.nome,
+                tipo_ambiente=reserva.ambiente.tipo_ambiente,
                 data_inicio=reserva.data_inicio,
                 data_fim=reserva.data_fim,
                 usuario_nome=reserva.usuario.nome,

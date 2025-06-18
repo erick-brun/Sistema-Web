@@ -319,6 +319,7 @@ class ReservaDashboard(SQLModel):
     """Schema para representar uma reserva no dashboard público (dia/turno)."""
     # Inclui apenas os dados relevantes para o dashboard público
     ambiente_nome: str # Nome do ambiente
+    tipo_ambiente: TipoAmbiente # Enum
     data_inicio: datetime # Horário de início da reserva
     data_fim: datetime # Horário de fim da reserva
     usuario_nome: str # Nome do responsável pela reserva
