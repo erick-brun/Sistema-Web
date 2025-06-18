@@ -51,9 +51,10 @@ function HomePage() {
       {/* Links para outras páginas protegidas */}
       <nav>
          <ul>
-            <li><Link to="/ambientes">Ver Ambientes Disponíveis</Link></li>
+            <li><Link to="/dashboard">Ver Reservas do dia</Link></li>
             <li><Link to="/solicitar-reserva">Solicitar Nova Reserva</Link></li>
             <li><Link to="/minhas-reservas">Ver Minhas Reservas</Link></li>
+            <li><Link to="/ambientes">Ver Ambientes Disponíveis</Link></li>
             <li><Link to="/historico-reservas">Ver meu Histórico de Reservas</Link></li>
             <li><Link to="/calendario">Ver Calendário de Reservas</Link></li>
             {/* TODO: Adicionar links para páginas de administração se o usuário for admin (usando user.tipo) */}

@@ -18,6 +18,7 @@ import ManageUsersPage from './pages/ManageUsersPage';
 import ManageAmbientesPage from './pages/ManageAmbientesPage';
 import ManageReservasPage from './pages/ManageReservasPage';
 import HistoryPageAdmin from './pages/HistoryPageAdmin'; // Histórico geral para admins
+import DashboardPage from './pages/DashboardPage';
 
 // Importe seu componente de Rota Protegida
 import ProtectedRoute from './components/ProtectedRoute';
@@ -85,6 +86,12 @@ function App() { // Componente App
                element={<ProtectedRoute><HistoryPageAdmin /></ProtectedRoute>} // <--- Usa ProtectedRoute e HistoryPageAdmin
              />
 
+
+            {/* Rota do Dashboard*/}
+             <Route
+               path="/dashboard" // <--- Caminho da rota (ex: /dashboard)
+               element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} // <--- Envolvida por ProtectedRoute
+             />
 
             {/* TODO: Adicionar outras rotas protegidas se necessário */}
             {/* ... */}

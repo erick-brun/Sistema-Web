@@ -311,7 +311,26 @@ class HistoricoReservaRead(SQLModel):
 
 
 # =============================================
-# TODO: Adicionar Schemas para outras operações se necessário (ex: Aprovar/Recusar Reserva)
+# Schemas para Dashboard Público
 # =============================================
-# class ReservaStatusUpdate(SQLModel):
-#     status: StatusReserva # Ex: Schema dedicado apenas para mudar o status
+
+# Schema para representar uma reserva no Dashboard Público (dados simplificados)
+class ReservaDashboard(SQLModel):
+    """Schema para representar uma reserva no dashboard público (dia/turno)."""
+    # Inclui apenas os dados relevantes para o dashboard público
+    ambiente_nome: str # Nome do ambiente
+    data_inicio: datetime # Horário de início da reserva
+    data_fim: datetime # Horário de fim da reserva
+    usuario_nome: str # Nome do responsável pela reserva
+
+    # Opcional: ID da reserva, status (se quiser mostrar)
+    # id: int
+    # status: StatusReserva # Se StatusReserva for importado e usado aqui
+
+    # Configuração necessária para ler de um resultado de query (que pode não ser um modelo completo)
+    # ou de um dicionário/objeto criado no CRUD.
+    class Config:
+        from_attributes = True # Útil se os dados vierem de um resultado ORM ou objeto com atributos
+
+
+# ... (Outros schemas) ...

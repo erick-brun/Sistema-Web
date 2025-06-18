@@ -19,12 +19,12 @@ from fastapi import (
 from sqlmodel import Session # Importa Session para tipagem da dependência de sessão
 from uuid import UUID # Importa UUID para lidar com IDs de usuário (relacionados a reservas)
 from typing import List, Optional # Importa para type hints
-from datetime import datetime # Importa datetime para filtros de data
+from datetime import datetime, date # Importa datetime para filtros de data
 
 # Importações dos seus módulos locais
 from app.database import get_session # Dependência para obter sessão do DB
 # Importa schemas relevantes para Reserva e Histórico
-from app.schemas import ReservaCreate, ReservaRead, ReservaUpdate, ReservaList, HistoricoReservaRead
+from app.schemas import ReservaCreate, ReservaRead, ReservaUpdate, ReservaList, HistoricoReservaRead, ReservaDashboard
 # Importa dependências de segurança
 from app.security import get_current_user, get_current_admin # get_current_user é crucial para saber quem está reservando
 # Importa Enums e Modelos relevantes
@@ -351,3 +351,34 @@ def atualizar_status_reserva_endpoint(
 
 # Nota: A função mover_reserva_para_historico não tem um endpoint API dedicado.
 # Ela é chamada internamente pela função atualizar_status_reserva no CRUD.
+
+
+# =============================================
+# Dashboard Público (Reservas por Dia e Turno)
+# Rota: GET /reservas/dashboard/dia-turno
+# =============================================
+@router.get("/dashboard/dia-turno", response_model=List[ReservaDashboard])
+# **ACESSÓ PÚBLICO:** NÃO requer Depends(get_current_user) ou Depends(get_current_admin)
+def dashboard_reservas_dia_turno(
+    session: Session = Depends(get_session), # Dependência da sessão do DB
+    data_alvo: date = Query(..., description="A data para obter as reservas (formato YYYY-MM-DD)"), # Parâmetro de Query para a data
+    turno_alvo: str = Query(..., description="O turno para obter as reservas ('manha', 'tarde', 'noite')") # Parâmetro de Query para o turno
+):
+    """
+    Endpoint público para obter reservas CONFIRMADAS ou PENDENTES para um dia e turno específicos.
+    Retorna dados simplificados para exibição em dashboard.
+    """
+    # Acesso é público, sem necessidade de verificar usuário logado.
+
+    # Chama a função CRUD para obter os dados do dashboard.
+    # O CRUD lida com a lógica de filtrar, carregar relacionamentos e adaptar para o schema de saída.
+    # O CRUD também lida com a validação do turno e erros 400.
+    reservas_dashboard = crud.obter_reservas_dashboard(
+        session,
+        data_alvo=data_alvo, # Passa a data (objeto date)
+        turno_alvo=turno_alvo # Passa o turno (string)
+    )
+
+    # Retorna a lista de objetos ReservaDashboard.
+    return reservas_dashboard
+

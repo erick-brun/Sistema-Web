@@ -10,11 +10,11 @@ from sqlmodel import Session, select, and_, or_ # Importa o necessário do SQLMo
 from fastapi import HTTPException, status # Importa exceções HTTP do FastAPI
 from typing import List, Optional # Importa tipos para type hints (listas e valores opcionais)
 import uuid # Importa uuid para lidar com IDs do tipo UUID
-from datetime import datetime, timezone
+from datetime import datetime, time, date, timezone
 # Importações dos seus módulos locais
 from app.models import Usuario, TipoUsuario, Ambiente, TipoAmbiente, Reserva, StatusReserva, HistoricoReserva # Importa os modelos de dados
 # Importa schemas relevantes. UsuarioUpdate será necessário para a função de atualização.
-from app.schemas import UsuarioCreate, UsuarioUpdate, AmbienteCreate, AmbienteUpdate, ReservaCreate, ReservaUpdate, HistoricoReservaRead
+from app.schemas import UsuarioCreate, UsuarioUpdate, AmbienteCreate, AmbienteUpdate, ReservaCreate, ReservaUpdate, HistoricoReservaRead, ReservaDashboard
 # Importa funções de segurança para hash e verificação de senhas
 from app.security import hash_password, verify_password
 
@@ -28,6 +28,22 @@ from sqlalchemy.orm import selectinload # Importe selectinload
 # Em um ambiente de produção real, configurar para enviar logs para um sistema centralizado.
 logging.basicConfig(level=logging.INFO) # Define o nível mínimo de log a ser exibido
 logger = logging.getLogger(__name__) # Cria um logger específico para este módulo (app.crud)
+
+
+# TODO: Definir Enums ou lógicas para Turnos
+# Ex: class Turno(str, Enum): manha = "manha"; tarde = "tarde"; noite = "noite"
+# Ou apenas usar strings literais e mapeá-las para períodos de tempo.
+# Vamos usar strings literais e mapear.
+# Ex: manha = 8:00 - 12:00, tarde = 13:00 - 18:00, noite = 19:00 - 23:00
+def get_time_range_for_turno(turno: str) -> tuple[time, time] | None:
+    """Retorna o intervalo de tempo (hora, minuto) para um turno específico."""
+    if turno.lower() == 'manha':
+        return (time(8, 0), time(12, 0)) # 08:00 a 12:00
+    elif turno.lower() == 'tarde':
+        return (time(13, 0), time(18, 0)) # 13:00 a 18:00
+    elif turno.lower() == 'noite':
+        return (time(19, 0), time(23, 0)) # 19:00 a 23:00
+    return None # Turno inválido
 
 # =============================================
 # Funções CRUD para Usuário (Usuario)
@@ -1227,6 +1243,85 @@ def obter_historico_reservas( # Nome corrigido para 'obter'
 
 
 # =============================================
-# Funções Específicas para Usuário (Autenticação, Promoção/Demote, etc.)
+# Funções para Dashboard Público (Reservas por Dia e Turno)
 # =============================================
-# ... (Funções de usuário específicas existentes) ...
+
+def obter_reservas_dashboard(
+    session: Session,
+    data_alvo: date, # A data para filtrar as reservas (apenas o dia)
+    turno_alvo: str # O turno para filtrar as reservas ('manha', 'tarde', 'noite')
+) -> List[ReservaDashboard]:
+    """
+    Obtém reservas CONFIRMADAS ou PENDENTES para um dia e turno específicos.
+    Retorna dados simplificados para o dashboard público.
+
+    Args:
+        session: Sessão do banco de dados.
+        data_alvo: O objeto date (apenas dia, mês, ano) para filtrar.
+        turno_alvo: A string do turno ('manha', 'tarde', 'noite').
+
+    Returns:
+        Uma lista de objetos com dados simplificados (ReservaDashboard).
+
+    Raises:
+        HTTPException: Se o turno_alvo for inválido (400 Bad Request).
+    """
+    # 1. Determinar o intervalo de tempo para o turno alvo.
+    turno_times = get_time_range_for_turno(turno_alvo)
+    if turno_times is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Turno inválido. Use 'manha', 'tarde' ou 'noite'."
+        )
+
+    # Combine a data alvo com as horas do turno para criar objetos datetime (cientes de fuso horário).
+    # Assumimos que as datas no DB estão em UTC. É crucial que a comparação seja entre datetimes com o mesmo fuso horário.
+    # Crie datetimes em UTC para o início e fim do período do turno no dia alvo.
+    # Use timezone.utc
+    periodo_inicio_dt = datetime.combine(data_alvo, turno_times[0], tzinfo=timezone.utc)
+    periodo_fim_dt = datetime.combine(data_alvo, turno_times[1], tzinfo=timezone.utc)
+
+    # 2. Criar a query para obter reservas.
+    # Busca reservas que:
+    # - Estão no status PENDENTE ou CONFIRMADA.
+    # - Sobreponham o período do turno no dia alvo (usando a lógica de sobreposição: A < D e C < B).
+    # - Carrega os relacionamentos 'ambiente' e 'usuario' para obter os nomes.
+    query = select(Reserva).where(
+        Reserva.status.in_([StatusReserva.PENDENTE, StatusReserva.CONFIRMADA]),
+        # Condição de sobreposição: Reserva começa antes do FIM do período do turno E o período do turno começa antes do FIM da reserva.
+        and_(
+            Reserva.data_inicio < periodo_fim_dt,
+            Reserva.data_fim > periodo_inicio_dt
+        )
+    ).options(
+        selectinload(Reserva.ambiente), # Carregar ambiente para nome
+        selectinload(Reserva.usuario)  # Carregar usuário para nome
+    )
+
+    # Opcional: Ordenar as reservas (ex: por hora de início)
+    query = query.order_by(Reserva.data_inicio)
+
+
+    # 3. Executar a query.
+    reservas_no_turno: List[Reserva] = session.exec(query).all()
+
+    # 4. Adaptar os resultados para o schema de saída ReservaDashboard.
+    # Criar manualmente objetos que correspondam ao schema ReservaDashboard,
+    # extraindo os dados dos relacionamentos carregados.
+    reservas_dashboard: List[ReservaDashboard] = []
+    for reserva in reservas_no_turno:
+        # Certifique-se que ambiente e usuario não são None (o que não deve acontecer se a FK não é NULLABLE e o relacionamento foi carregado)
+        if reserva.ambiente and reserva.usuario:
+            reservas_dashboard.append(ReservaDashboard(
+                # id=reserva.id, # Opcional
+                ambiente_nome=reserva.ambiente.nome,
+                data_inicio=reserva.data_inicio,
+                data_fim=reserva.data_fim,
+                usuario_nome=reserva.usuario.nome,
+                # status=reserva.status # Opcional
+            ))
+         # Se ambiente ou usuario for None, podemos pular esta reserva ou logar um warning.
+         # logger.warning(f"Reserva {reserva.id} com relacionamento nulo (ambiente ou usuario).")
+
+    # 5. Retornar a lista de objetos formatados.
+    return reservas_dashboard
