@@ -697,6 +697,49 @@ def verificar_disponibilidade_ambiente(
     # Se .first() retornou uma reserva, significa que há sobreposição -> ambiente NÃO está disponível.
     return reserva_sobreposta is None # Retorna True se NÃO encontrou sobreposição, False se encontrou.
 
+# **NOVA FUNÇÃO:** Chamada por endpoint para verificar disponibilidade e retornar status
+def check_reserva_availability(
+    session: Session,
+    ambiente_id: int,
+    data_inicio: datetime,
+    data_fim: datetime,
+    reserva_id_excluir: Optional[int] = None
+) -> bool:
+    """
+    Verifica a disponibilidade de um ambiente para reserva.
+    Função wrapper para ser usada por um endpoint GET.
+
+    Args:
+        session: Sessão do banco de dados.
+        ambiente_id: ID do ambiente.
+        data_inicio: Data/hora de início desejada.
+        data_fim: Data/hora de fim desejada.
+        reserva_id_excluir: ID da reserva a excluir da checagem (para edição).
+
+    Returns:
+        True se disponível, False se indisponível.
+
+    Raises:
+        HTTPException: Se as datas forem inválidas (data_inicio >= data_fim) - Opcional, pode validar no frontend.
+    """
+    # Opcional: Validação de datas básicas aqui também (embora validateDates no frontend já faça)
+    if data_inicio >= data_fim:
+        # Levantar 400 aqui ou apenas retornar False?
+        # Se retornar False, o endpoint chamador decide se é um 400 ou outra mensagem.
+        # Vamos retornar False para simplicidade na função CRUD.
+        logger.warning("Checagem de disponibilidade com datas inválidas fornecidas.")
+        return False
+
+    # Chama a função de verificação de disponibilidade real.
+    is_available = verificar_disponibilidade_ambiente(
+        session,
+        ambiente_id,
+        data_inicio,
+        data_fim,
+        reserva_id_excluir
+    )
+
+    return is_available
 
 # =============================================
 # Funções CRUD para Reserva (Reserva)

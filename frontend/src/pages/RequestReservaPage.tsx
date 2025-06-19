@@ -5,6 +5,9 @@ import api from '../services/api';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+import { format, formatISO, parseISO } from 'date-fns';
+
+
 // Importar componentes de UI (Material UI)
 import { TextField, Button, Select, MenuItem, FormControl, InputLabel, Checkbox, FormControlLabel, Typography, Box, CircularProgress } from '@mui/material';
 
@@ -250,98 +253,85 @@ function RequestReservaPage() {
       return errors; // Retorna o objeto de erros
   };
 
-  // **NOVA LÓGICA:** Função para validar disponibilidade (chamada API)
-  // Usa useCallback para memorizar a função se ela tiver muitas dependências e for chamada em useEffect
+  // Função para validar disponibilidade (chamada API REAL)
   const validateAvailability = useCallback(async (): Promise<{[key: string]: string | undefined}> => {
       const errors: {[key: string]: string | undefined} = {};
 
-      // Só validar disponibilidade se ambiente_id, data_inicio e data_fim estiverem preenchidos E não tiver erros de data
+      // Só validar disponibilidade se ambiente_id, data_inicio e data_fim estiverem preenchidos
       if (!formData.ambiente_id || !formData.data_inicio || !formData.data_fim) {
-          // A validação básica de campos obrigatórios já lida com isso.
-          return {};
+          return {}; // Sem erros se campos não preenchidos
       }
 
-      // Re-validar datas para garantir que são válidas ANTES de checar disponibilidade
-      const dateValidationErrors = validateDates();
+      // Re-validar datas para garantir que são válidas ANTES de chamar a API
+      // (Esta validação usa new Date() localmente)
+      const dateValidationErrors = validateDates(); // <--- Chama a validação local de datas
       if (Object.keys(dateValidationErrors).length > 0) {
-           setFormErrors(prev => ({...prev, ...dateValidationErrors})); // Adiciona erros de data
-           return {}; // Não checa disponibilidade se as datas são inválidas
+           // Se validateDates encontrou erros (formato inválido, no passado, fim antes de início),
+           // ele já definiu formErrors. Não precisamos adicionar aqui, apenas retornar vazio
+           // para não bloquear a exibição dos erros de data já definidos.
+           return {}; // Retorna sem checar disponibilidade se as datas são inválidas localmente
       }
 
       setValidatingAvailability(true); // Inicia loading da validação
       try {
-           // Chamar o endpoint backend que verifica disponibilidade
-           // Backend já tem a função crud.verificar_disponibilidade_ambiente
-           // Precisamos de um endpoint backend que apenas use esta função e retorne status.
-           // Podemos criar um novo endpoint GET /reservas/verificar-disponibilidade
-           // ou talvez adaptar a rota de criação para incluir uma checagem 'pré-voo'.
-           // A forma mais comum é um endpoint GET que verifica.
+           console.log("Chamando backend para verificar disponibilidade...");
 
-           // TODO: Criar um endpoint backend GET /reservas/check-availability
-           // Endpoint GET /reservas/check-availability
-           // Parâmetros de Query: ambiente_id, data_inicio, data_fim, reserva_id (opcional para edição)
-           // Retorna: 200 OK se disponível, 409 Conflict se NÃO disponível.
-           // Ex: await api.get('/reservas/check-availability', { params: { ambiente_id, data_inicio, data_fim, reserva_id } });
+           // **CORREÇÃO:** Converter as strings de data/hora locais (sem fuso)
+           // para objetos Date (interpretados localmente) e depois para strings ISO 8601 em UTC.
+           const startDateLocal = new Date(formData.data_inicio); // Parse no fuso local
+           const endDateLocal = new Date(formData.data_fim);     // Parse no fuso local
 
-           console.log("Chamando backend para verificar disponibilidade..."); // Debug
+           // Converter para string ISO 8601 em UTC (com 'Z'). toISOString() faz isso.
+           const startDateUtcIso = startDateLocal.toISOString(); // <--- USA toISOString()
+           const endDateUtcIso = endDateLocal.toISOString();     // <--- USA toISOString()
 
-           // **Implementação Provisória:** Reutilizar a lógica do endpoint de criação no backend
-           // para checar disponibilidade, mas sem salvar. Isso exigiria modificar o backend.
-           // **Alternativa:** Chamar o endpoint de criação, mas adicionar um parâmetro dummy
-           // que diga ao backend para apenas validar e não salvar. (Não recomendado).
-           // **Melhor:** Criar um endpoint GET dedicado no backend (como sugerido).
+           console.log(`Verificando de ${startDateUtcIso} a ${endDateUtcIso} para ambiente ${formData.ambiente_id}.`);
 
-           // **Simulando Chamada de Verificação de Disponibilidade (Até criar endpoint backend):**
-           // Esta parte é um PLACEHOLDER!
-           // Você precisará de um endpoint backend real para isso.
-           // Por enquanto, vamos apenas SIMULAR que a verificação acontece e passa.
-           // Remover este placeholder quando o endpoint backend for criado.
-           // console.log("Simulando verificação de disponibilidade (sem chamar backend)...");
-           // await new Promise(resolve => setTimeout(resolve, 500)); // Simula delay
-           // const isAvailable = true; // Simula que está disponível
 
-           // **Usando o endpoint de criação para CHECAR (com resalvas):**
-           // O endpoint POST /reservas/ já tem a checagem de disponibilidade.
-           // Ao tentar criar, se não disponível, ele retorna 409.
-           // Podemos confiar nesta checagem apenas no SUBMIT final.
-           // Mas a validação PRÉVIA no frontend seria melhor.
-
-           // **Realmente PRECISA de um endpoint backend para check de disponibilidade.**
-           // Se o endpoint existe:
+           // Chamar o NOVO endpoint backend GET /reservas/check-availability
            const response = await api.get('/reservas/check-availability', {
                params: {
                   ambiente_id: formData.ambiente_id,
-                  data_inicio: formData.data_inicio, // Strings ISO
-                  data_fim: formData.data_fim,
-                  // Para edição, passar o ID da reserva que está sendo editada para excluir da checagem
-                  reserva_id: reservaId ? parseInt(reservaId, 10) : undefined, // Converte string para int ou undefined
+                  data_inicio: startDateUtcIso, // <--- Enviar string ISO 8601 EM UTC
+                  data_fim: endDateUtcIso,      // <--- Enviar string ISO 8601 EM UTC
+                  reserva_id: reservaId ? parseInt(reservaId, 10) : undefined, // Passa ID como number ou undefined
                }
            });
 
            // Se a requisição GET retornar 200 OK, está disponível.
-           // Se retornar 409 Conflict, NÃO está disponível (backend lida com isso).
-           // Outros erros serão capturados pelo catch.
+           // Se retornar 409 Conflict, o catch será acionado.
 
-           console.log("Verificação de disponibilidade retornou sucesso."); // Debug
+           console.log("Verificação de disponibilidade retornou sucesso (200 OK).");
 
-           return {}; // Sem erros de disponibilidade
+           return {}; // Retorna objeto vazio (sem erros) se a API retornar 200
 
       } catch (err: any) {
           console.error("Erro na verificação de disponibilidade:", err);
            const availabilityError: {[key: string]: string | undefined} = {};
-           // Se o backend retornou 409 Conflict, o erro.response.data.detail terá a mensagem.
+
+           // Captura erro 409 especificamente, LANÇA outros erros.
            if (err.response && err.response.status === 409) {
-               availabilityError.data_inicio = err.response.data.detail || 'Ambiente não disponível para este período.'; // Exibe mensagem de indisponibilidade
-               availabilityError.data_fim = err.response.data.inicio; // Exibe mensagem no campo data_fim também (opcional)
+               // Erro de Conflito (Indisponibilidade)
+               availabilityError.data_inicio = err.response.data?.detail || 'Ambiente não disponível para este período.'; // Mensagem do backend
+               availabilityError.data_fim = availabilityError.data_inicio; // Associar à data_fim
+               console.log("Erro 409 de disponibilidade detectado.");
+               return availabilityError; // Retorna erros de disponibilidade
+           } else if (err.response) {
+              // Outro erro de resposta da API (400, 404, 500, etc.)
+              // **Lança este erro** para o catch principal de handleSubmit lidar com ele.
+              console.error("Erro NÃO 409 na verificação de disponibilidade. Relançando.", err);
+              throw err; // <--- RELANÇA O ERRO
            } else {
-              // Outro erro inesperado na API de verificação
-              setError('Erro inesperado ao verificar disponibilidade.'); // Exibe erro geral
+              // Erro de rede, timeout, etc.
+               console.error("Erro de rede ou config na verificação de disponibilidade. Relançando.", err);
+              throw err; // <--- RELANÇA O ERRO
            }
-          return availabilityError; // Retorna erros de disponibilidade
+
       } finally {
           setValidatingAvailability(false); // Finaliza loading da validação
+          console.log("validateAvailability finalizado."); // Debug
       }
-  }, [formData.ambiente_id, formData.data_inicio, formData.data_fim, reservaId]); // Dependências: campos do formulário e reservaId
+  }, [formData.ambiente_id, formData.data_inicio, formData.data_fim, reservaId]); // Dependências
 
 
   // **MODIFICADO:** Função para validar o formulário no frontend
@@ -373,32 +363,34 @@ function RequestReservaPage() {
 
 
 
-  // Função para lidar com submissão do formulário (adaptada para validação)
+  // Função para lidar com submissão do formulário (MODIFICADO para usar validateAvailability)
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     setError(null);
     setSuccessMessage(null);
-    setFormSubmissionError(null);
+    setFormSubmissionError(null); // <--- Limpa erros de submissão anteriores
     setIsSubmittingForm(true);
 
 
-    // **ADICIONADO:** Validação frontend antes de submeter
-    if (!validateForm()) {
-        console.log("Validação frontend falhou.");
+    // Validação frontend (básica e datas)
+    const basicAndDateErrors = validateForm(); // Valida campos obrigatórios e datas
+    if (Object.keys(basicAndDateErrors).length > 0) {
+        console.log("Validação frontend (básica e datas) falhou.");
+        setFormErrors(basicAndDateErrors); // Exibe erros básicos e de datas
         setIsSubmittingForm(false);
-        return; // Para a submissão se a validação falhar
+        return; // Para a submissão se a validação básica/data falhar
     }
-     console.log("Validação frontend básica bem-sucedida.");
+     console.log("Validação frontend (básica e datas) bem-sucedida.");
 
-    // **ADICIONADO:** Validação de disponibilidade (chamada API) ANTES de submeter
-    // Esta validação é crucial. Ela pode retornar erros (409).
-    const availabilityErrors = await validateAvailability(); // <--- CHAMA A VALIDAÇÃO DE DISPONIBILIDADE
+    // **CORREÇÃO:** CHAMA a validação de disponibilidade INDEPENDENTE AQUI.
+    // Esta validação fará uma chamada GET separada para o backend.
+    const availabilityErrors = await validateAvailability(); // <--- CHAMA A VALIDAÇÃO DE DISPONIBILIDADE AGORA
     if (Object.keys(availabilityErrors).length > 0) {
-         console.log("Verificação de disponibilidade falhou."); // Debug
-         setFormErrors(prev => ({...prev, ...availabilityErrors})); // Adiciona erros de disponibilidade
+         console.log("Verificação de disponibilidade falhou (na função validateAvailability).");
+         setFormErrors(prev => ({...prev, ...availabilityErrors})); // Adiciona erros de disponibilidade aos erros do formulário
          setIsSubmittingForm(false);
-         return; // Para a submissão se não estiver disponível
+         return; // Para a submissão se não estiver disponível (erros exibidos pelo setFormErrors)
     }
      console.log("Verificação de disponibilidade bem-sucedida.");
 
@@ -406,25 +398,22 @@ function RequestReservaPage() {
     try {
       // Prepara os dados para enviar (como antes)
       const dataToSend = {
-          ambiente_id: formData.ambiente_id,
-          data_inicio: formData.data_inicio,
-          data_fim: formData.data_fim,
-          motivo: formData.motivo,
-      };
+       // Converter '' para null para ambiente_id se for string vazia
+       ambiente_id: formData.ambiente_id === '' ? null : formData.ambiente_id, // <--- CORRIGIDO
+       data_inicio: formData.data_inicio, // String ISO
+       data_fim: formData.data_fim,      // String ISO
+       motivo: formData.motivo,
+   };
 
       let response;
       let successMessageText;
 
       // Lógica POST/PATCH (como antes)
+      // **A VALIDAÇÃO DE DISPONIBILIDADE (409) DEVE TER OCORRIDO AGORA (via validateAvailability) ANTES DE CHEGAR AQUI.**
+      // O backend AINDA VAI VERIFICAR DISPONIBILIDADE AQUI NOVAMENTE (redundante, mas seguro).
       if (reservaId) {
           // Modo edição
-          response = await api.patch(`/reservas/${reservaId}`, dataToSend, {
-              params: { // Opcional: adicionar o query param de usuário selecionado na edição também?
-                 // Se admin, e reservando para outro, talvez precise enviar aqui também?
-                 // backend espera 'reservar_para_usuario_id'
-                 reservar_para_usuario_id: selectedUserId && user?.tipo === 'admin' ? selectedUserId : undefined,
-              }
-          });
+           response = await api.patch(`/reservas/${reservaId}`, dataToSend, { params: { reservar_para_usuario_id: selectedUserId && user?.tipo === 'admin' ? selectedUserId : undefined, } });
           successMessageText = 'Reserva atualizada com sucesso!';
 
       } else {
@@ -453,18 +442,45 @@ function RequestReservaPage() {
       }
 
     } catch (err: any) {
-      console.error('Operação de reserva falhou (na submissão principal API):', err);
+      console.error('Operação de reserva falhou (no catch do handleSubmit):', err); // Debug
 
-      // Lida com erros específicos do backend
-      const errorMessage = err.response?.data?.detail || 'Erro desconhecido ao processar reserva.';
-      setError(errorMessage); // Este erro é para a página pai (se o formulário for modal)
-      setFormSubmissionError(errorMessage); // <--- Define erro para ser exibido no formulário (usado aqui)
+      // **MODIFICADO:** Lida com outros erros específicos do backend (400, 403, etc.).
+      // O erro 409 (indisponibilidade) é tratado AGORA no catch de validateAvailability.
+      let messageToDisplay = 'Erro desconhecido ao processar reserva.';
+      const backendDetail = err.response?.data?.detail;
+
+       if (err.response && err.response.status === 400) {
+          // Erro de Validação do Backend (400 Bad Request)
+          if (Array.isArray(backendDetail)) {
+              // Erro 400 com detail como array de objetos (validação de schema)
+              messageToDisplay = backendDetail.map((e: any) => e.msg).join('; '); // Mensagens de validação de schema
+          } else if (typeof backendDetail === 'string') {
+              messageToDisplay = backendDetail;
+          } else {
+              messageToDisplay = 'Erro de validação. Verifique os dados enviados.';
+          }
+       } else if (err.response && err.response.status === 403) {
+          // Erro 403 Forbidden
+          messageToDisplay = backendDetail || 'Acesso negado.';
+       } else if (err.response && err.response.status === 404) {
+           // Erro 404 Not Found
+           messageToDisplay = backendDetail || 'Recurso não encontrado (Ambiente ou Usuário para reservar).';
+       }
+        else if (err.response) {
+          // Outros erros de resposta da API (500, etc.)
+          messageToDisplay = backendDetail || err.response.statusText || `Erro de resposta da API: ${err.response.status}`;
+       } else {
+          // Erro de rede, timeout, etc.
+          messageToDisplay = err.message || 'Erro de rede. Tente novamente.';
+       }
+
+      // Exibe o erro de submissão (acima do formulário)
+      setFormSubmissionError(messageToDisplay); // Define erro para ser exibido no formulário
 
     } finally {
       setIsSubmittingForm(false); // Finaliza estado de submissão
     }
   };
-
 
   // Determinar o título da página com base no modo (criação vs edição)
   const pageTitle = reservaId ? 'Editar Reserva' : 'Solicitar Nova Reserva';
@@ -512,7 +528,7 @@ function RequestReservaPage() {
 
         {/* Campo Ambiente */}
         <Box mb={2}>
-          <FormControl fullWidth required error={!!formErrors.ambiente_id} disabled={isFormDisabled}>
+          <FormControl fullWidth required disabled={isFormDisabled} error={!!formErrors.ambiente_id}>
              <InputLabel id="ambiente-select-label">Ambiente:</InputLabel>
              <Select
                labelId="ambiente-select-label"
@@ -529,6 +545,7 @@ function RequestReservaPage() {
                  <MenuItem key={ambiente.id} value={ambiente.id}>{ambiente.nome} (Cap: {ambiente.capacidade})</MenuItem>
                ))}
              </Select>
+             {/* **ADICIONADO:** Exibe mensagem de erro de validação para ambiente_id */}
               {formErrors.ambiente_id && <Typography variant="caption" color="error">{formErrors.ambiente_id}</Typography>}
           </FormControl>
         </Box>
@@ -546,8 +563,8 @@ function RequestReservaPage() {
                required
                InputLabelProps={{ shrink: true }}
                disabled={isFormDisabled}
-               error={!!formErrors.data_inicio}
-               helperText={formErrors.data_inicio}
+               error={!!formErrors.data_inicio} // Marca como erro se houver mensagem de erro para este campo
+               helperText={formErrors.data_inicio} // **ADICIONADO:** Exibe a mensagem de erro (incluindo erro de disponibilidade)
              />
          </Box>
 
@@ -563,8 +580,8 @@ function RequestReservaPage() {
                 required
                 InputLabelProps={{ shrink: true }}
                 disabled={isFormDisabled}
-                error={!!formErrors.data_fim}
-                helperText={formErrors.data_fim}
+                error={!!formErrors.data_fim} // Marca como erro se houver mensagem de erro para este campo
+                helperText={formErrors.data_fim} // **ADICIONADO:** Exibe a mensagem de erro (incluindo erro de disponibilidade)
               />
          </Box>
 
@@ -582,17 +599,21 @@ function RequestReservaPage() {
                multiline
                rows={3}
                disabled={isFormDisabled}
-               inputProps={{ maxLength: 100 }} // Limite de caracteres no frontend
+               inputProps={{ maxLength: 100 }} // Correspondendo ao backend
                error={!!formErrors.motivo}
                helperText={formErrors.motivo}
              />
          </Box>
 
-        {/* Exibe erro de submissão aqui, DENTRO do formulário */}
-        {formSubmissionError && <Typography color="error" gutterBottom>{formSubmissionError}</Typography>}
+        {/* Exibe erro de submissão geral aqui (se não for um erro associado a um campo específico) */}
+        {formSubmissionError && (
+     // Exibe a mensagem de erro de submissão.
+     // Usar um <pre> se a mensagem tiver quebras de linha (como com erros 400).
+     <Typography color="error" gutterBottom component="pre" sx={{ whiteSpace: 'pre-wrap' }}>{formSubmissionError}</Typography> // <--- Usar <pre> para quebras de linha e whiteSpace
+ )}
 
 
-        {/* Botões de Ação (Submit e Cancelar) */}
+        {/* Botões de Ação */}
         <Box mt={3}>
           <Button
              type="submit"
@@ -607,7 +628,7 @@ function RequestReservaPage() {
              type="button"
              variant="outlined"
              onClick={() => navigate('/minhas-reservas')} // Botão Cancelar redireciona para minhas reservas
-             disabled={isSubmittingForm} // Desabilita apenas se submetendo (para não interromper API call)
+             disabled={isSubmittingForm} // Desabilita apenas se submetendo
           >
             Cancelar
           </Button>

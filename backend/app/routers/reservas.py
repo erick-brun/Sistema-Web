@@ -43,6 +43,56 @@ router = APIRouter(tags=["reservas"])
 
 
 # =============================================
+# Verificar Disponibilidade (Endpoint GET)
+# Rota: GET /reservas/check-availability
+# =============================================
+@router.get("/check-availability", status_code=status.HTTP_200_OK) # Retorna 200 OK se disponível
+# Este endpoint pode ser PÚBLICO ou REQUERER autenticação (para saber quem verifica).
+# Geralmente, a checagem de disponibilidade pode ser pública para mostrar horários livres.
+# Se quiser que SÓ usuários logados possam checar, adicione Depends(get_current_user).
+def check_reserva_availability_endpoint( # Nome do endpoint
+    session: Session = Depends(get_session),
+    # Opcional: Requires authentication
+    # current_user: Usuario = Depends(get_current_user),
+    ambiente_id: int = Query(..., description="ID do ambiente a verificar."), # Parâmetro de Query obrigatório
+    data_inicio: datetime = Query(..., description="Data e hora de início (ISO 8601)."), # Parâmetro de Query obrigatório
+    data_fim: datetime = Query(..., description="Data e hora de fim (ISO 8601)."),    # Parâmetro de Query obrigatório
+    reserva_id: Optional[int] = Query(None, description="ID da reserva a excluir da checagem (para edição).") # Parâmetro opcional para edição
+):
+    """
+    Verifica se um ambiente específico está disponível para reserva em um período.
+    Retorna 200 OK se disponível.
+    Retorna 409 Conflict se NÃO disponível.
+    Acesso pode ser público ou restrito (definir Requires).
+    Lança 400 Bad Request para datas inválidas ou parâmetros ausentes.
+    Lança 404 Not Found se ambiente_id não existir (opcional).
+    """
+    # Opcional: Verificar se o ambiente_id existe antes de checar disponibilidade
+    # ambiente_existe = crud.obter_ambiente(session, ambiente_id) # obter_ambiente já lida com 404
+
+    # Validar datas básicas (início < fim) se necessário
+    # O frontend já valida, mas backend deve sempre validar dados de entrada.
+    if data_inicio >= data_fim:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data de início deve ser anterior à data de fim.")
+
+
+    # Chama a função CRUD para verificar a disponibilidade.
+    is_available = crud.check_reserva_availability(
+        session,
+        ambiente_id=ambiente_id,
+        data_inicio=data_inicio, # Datetimes com fuso horário (backend lida)
+        data_fim=data_fim,
+        reserva_id_excluir=reserva_id # Passa o ID para excluir na checagem
+    )
+
+    if is_available:
+        # Se disponível, retorna 200 OK (corpo vazio ou mensagem opcional)
+        return {"message": "Ambiente disponível."} # Retornar uma mensagem ou corpo vazio
+    else:
+        # Se NÃO disponível, retorna 409 Conflict.
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="O ambiente não está disponível para o período solicitado.")
+
+# =============================================
 # Criar Reserva (Requer Autenticação - Usuário Logado. Admin pode reservar para outros.)
 # Rota: POST /reservas/
 # **MODIFICADO para aceitar parametro 'reservar_para_usuario_id' para admins**
@@ -351,6 +401,7 @@ def atualizar_status_reserva_endpoint(
 
 # Nota: A função mover_reserva_para_historico não tem um endpoint API dedicado.
 # Ela é chamada internamente pela função atualizar_status_reserva no CRUD.
+
 
 
 # =============================================
