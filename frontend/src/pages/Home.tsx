@@ -5,6 +5,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext'; // Para obter o usuário logado
 
+import theme from '../theme';
+
 // Importe Date/Time Picker (se usar para filtros de data)
 // import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 // import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -132,27 +134,27 @@ function HomePage() {
 
 
   return (
-    <Box sx={{ padding: 3 }}> {/* Adicionado padding para espaço interno */}
-      <Typography variant="h4" component="h1" gutterBottom>Bem-vindo ao Painel de Reservas!</Typography> {/* Título principal */}
+    <Box sx={{ padding: 3 }}>
+      {/* ... Título principal e dados do usuário logado ... */}
 
-      {/* Exibir dados do usuário logado (DO CONTEXTO) */}
-      {user && ( // Verifica se user não é null (sempre true se ProtectedRoute funcionou)
-        <Box mb={4}> {/* Adicionado margem inferior */}
-          <Typography variant="h5" gutterBottom>Olá, {user.nome}!</Typography> {/* Exibe o nome do usuário */}
-          {/* <p>Email: {user.email}</p> */}
-          {/* <p>Tipo de Usuário: {user.tipo}</p> */}
-        </Box>
-      )}
+      {/* Seção do Dashboard (incluindo filtros e o painel) */}
+      {/* **MODIFICADO:** Cor de fundo BRANCO para a seção dashboard (que envolve filtros e painel) */}
+      <Box sx={{
+          mb: 4,
+          padding: 3, // Padding interno da seção dashboard
+          backgroundColor: theme.palette.background.paper, // <--- USAR a cor branca do tema
+          borderRadius: 2,
+          // Sombra se desejar
+          boxShadow: 'var(--shadow-base)', // Adicionar sombra aqui
+      }}>
+          <Typography variant="h5" gutterBottom>Reservas do Dia por Turno (Público)</Typography>
 
-      {/* TODO: Adicionar conteúdo real do dashboard aqui (ex: resumo das próximas reservas do usuário) */}
-      {/* ... Conteúdo específico do usuário logado ... */}
-
-      <Box mb={4}>
-          <Typography variant="h5" gutterBottom>Reservas do Dia por Turno (Público)</Typography> {/* Título para a seção do Dashboard */}
-
-          {/* Filtros de Data e Turno para o Dashboard */}
-          <Box mb={3} display="flex" gap={2} alignItems="center">
+          {/* Filtros de Data e Turno para o Dashboard (MANTIDOS AQUI em HomePage) */}
+          {/* **MODIFICADO:** Remover o Box com fundo BRANCO que envolvia os filtros */}
+          {/* Os filtros (TextFields, FormControls) terão fundo transparente ou branco padrão */}
+          <Box mb={3} display="flex" gap={2} alignItems="center"> {/* Este Box agora tem fundo transparente (herdando do Box pai branco) */}
               <Typography variant="body1">Visualizando para:</Typography>
+              <Box display="flex" gap={2} alignItems="center"> {/* Flexbox para alinhar inputs */}
 
                {/* Seletor de Data (Input type="date") */}
                 <TextField
@@ -182,7 +184,11 @@ function HomePage() {
                      ))}
                    </Select>
                 </FormControl>
-          </Box>
+                </Box>
+          <TextField label="Data" type="date" value={selectedDate} onChange={handleDateChange} InputLabelProps={{ shrink: true }} disabled={loadingDashboard} />
+                   <FormControl sx={{ minWidth: 150 }} disabled={loadingDashboard}> {/* ... Select de Turno ... */} </FormControl>
+              
+           </Box>
 
           {/* **MODIFICADO:** Renderizar o componente DashboardPanel, passando os dados e estados. */}
           {/* O componente DashboardPanel cuidará de exibir o loading, erro, ou a lista de caixinhas. */}
@@ -195,11 +201,6 @@ function HomePage() {
           />
 
       </Box>
-
-
-      {/* TODO: Adicionar links para outras seções importantes (ex: Solicitar Reserva, Minhas Reservas) */}
-      {/* O Layout já tem a navegação principal, mas links aqui podem ser úteis no conteúdo da página */}
-
 
       {/* O Layout já tem o botão de Logout */}
 

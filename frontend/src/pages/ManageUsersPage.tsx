@@ -1,11 +1,13 @@
 // frontend/src/pages/ManageUsersPage.tsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react'; // Importar useCallback
 import api from '../services/api';
-// Importe useAuth para obter o usuário logado (para verificar se é admin e talvez evitar auto-gerenciamento)
 import { useAuth } from '../context/AuthContext';
-// Importe Link ou useNavigate se precisar de navegação
 import { Link, useNavigate } from 'react-router-dom';
+
+// Importar componentes de Material UI para tabelas e layout
+import { Box, Typography, CircularProgress, Paper, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Button } from '@mui/material';
+import theme from '../theme';
 
 // Reutilize a interface UsuarioData (ou UsuarioReadData se usar o nome do backend)
 interface UsuarioData { // Baseado no schema UsuarioRead do backend
@@ -219,105 +221,126 @@ function ManageUsersPage() { // Renomeado
     };
 
 
-  // Renderização condicional baseada no estado de carregamento do Contexto OU da lista de usuários
-  if (authLoading || loading) {
-    return <div>Carregando gerenciamento de usuários...</div>;
+  // Renderização condicional (loading/error)
+  if (authLoading || loading) { // Usar authLoading e loading
+    return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}> {/* Centralizar spinner */}
+            <CircularProgress />
+            <Typography variant="h6" sx={{ marginLeft: 2 }}>Carregando gerenciamento de usuários...</Typography>
+        </Box>
+    );
   }
 
-  // Verificar se o usuário logado é admin para renderizar o conteúdo principal
-  // A rota já é protegida por ProtectedRoute e AuthContext para login,
-  // mas precisamos verificar o TIPO do usuário para esta página específica de ADMIN.
+  // Verificar se o usuário logado é admin (proteção frontend/UX)
   if (user?.tipo !== 'admin') {
-       // Esta mensagem deve aparecer se o usuário não for admin.
-       // A dependência get_current_admin na rota backend também retornaria 403.
-       // Esta checagem frontend aprimora a UX.
-       return <div>Acesso negado. Esta página é apenas para administradores.</div>;
+       return <Box sx={{ padding: 3 }}><Typography variant="h6" color="error">Acesso negado. Esta página é apenas para administradores.</Typography></Box>;
   }
 
-
-  // Se não estiver carregando e o usuário for admin, exibe a lista de usuários.
-  if (error && !loading) { // Exibe erro se houver e não estiver carregando (após a tentativa de carregar a lista)
-    return <div style={{ color: 'red' }}>{error}</div>;
+  // Exibir erro se houver e não estiver carregando a lista
+  if (error && !loading) { // Usar loading
+    return <Box sx={{ padding: 3 }}><Typography variant="h6" color="error">{error}</Typography></Box>;
   }
 
 
   return (
-    <div>
-      <h1>Gerenciar Usuários (Admin)</h1>
+    // **ADICIONADO:** Container principal da página (cinza claro)
+    <Box sx={{ padding: 3, backgroundColor: theme.palette.background.default }}> {/* Padding e fundo cinza */}
+      <Typography variant="h4" component="h1" gutterBottom>Gerenciar Usuários (Admin)</Typography> {/* Título */}
 
-      {/* Opcional: Botão para criar novo usuário? (Você já tem página de cadastro) */}
-      {/* <Link to="/cadastro-usuario">Cadastrar Novo Usuário</Link> */}
+      {/* TODO: Adicionar botão para abrir formulário de CRIAÇÃO (se houver) */}
+      {/* Ex: <Button variant="contained" onClick={handleOpenCreateForm}>Novo Usuário</Button> */}
+
 
       {/* Exibir a lista de usuários */}
       {users.length > 0 ? (
-        <table> {/* Usar uma tabela para exibir usuários */}
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Email</th>
-              <th>Tipo</th>
-              <th>Ativo</th>
-              <th>Ações</th> {/* Coluna para botões */}
-            </tr>
-          </thead>
-          <tbody>
-            {users.map(userItem => ( // Renomeado para userItem para não conflitar com 'user' do contexto
-              <tr key={userItem.id}>
-                <td>{userItem.nome}</td>
-                <td>{userItem.email}</td>
-                <td>{userItem.tipo}</td>
-                <td>{userItem.ativo ? 'Sim' : 'Não'}</td>
-                <td>
-                   {/* Ações - Botões Promover, Rebaixar, Deletar */}
-                   {/* **Restringir ações para o próprio usuário logado e super-admins se houver** */}
+        // **MODIFICADO:** Usar componentes de Tabela do Material UI
+        <TableContainer component={Paper} elevation={2}> {/* Tabela dentro de um Paper com sombra */}
+          <Table sx={{ minWidth: 650 }} aria-label="simple table"> {/* minWidth para rolagem horizontal em telas pequenas */}
+            <TableHead> {/* Cabeçalho */}
+              <TableRow>
+                <TableCell>Nome</TableCell> {/* Célula de cabeçalho */}
+                <TableCell>Email</TableCell>
+                <TableCell>Tipo</TableCell>
+                <TableCell align="center">Ativo</TableCell> {/* Alinhar centralizado */}
+                <TableCell align="center">Ações</TableCell> {/* Alinhar centralizado */}
+              </TableRow>
+            </TableHead>
+            <TableBody> {/* Corpo da tabela */}
+              {users.map((userItem) => ( // userItem para não conflitar com 'user' do contexto
+                <TableRow
+                  key={userItem.id}
+                  // Adicionar efeito hover (opcional)
+                   sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': { backgroundColor: '#f0f0f0' } }} // Remover borda na última linha, efeito hover
+                >
+                  <TableCell component="th" scope="row">{userItem.nome}</TableCell> {/* Célula com scope="row" para acessibilidade */}
+                  <TableCell>{userItem.email}</TableCell>
+                  <TableCell>{userItem.tipo}</TableCell>
+                  <TableCell align="center">{userItem.ativo ? 'Sim' : 'Não'}</TableCell>
+                  <TableCell align="center"> {/* Célula para botões de ação, alinhada centralmente */}
+                     {/* Ações - Botões Promover, Rebaixar, Deletar (condicionalmente) */}
+                     {/* **Restringir ações para o próprio usuário logado e super-admins se houver** */}
+                     {/* Os botões são renderizados aqui, a lógica de permissão já está no código */}
 
-                   {/* Botão Promover: Visível se userItem não for admin E user logado for admin */}
-                   {userItem.tipo !== 'admin' && user?.tipo === 'admin' && user?.id !== userItem.id && (
-                      <button
-                          onClick={() => handlePromote(userItem.id)}
-                          disabled={modifyingUserId === userItem.id} // Desabilita durante modificação
-                      >
-                          {modifyingUserId === userItem.id ? 'Promovendo...' : 'Promover'}
-                      </button>
-                   )}
-                   {' '} {/* Espaço */}
+                     {/* Botão Promover */}
+                     {userItem.tipo !== 'admin' && user?.tipo === 'admin' && user?.id !== userItem.id && (
+                        <Button
+                            variant="outlined" // Estilo contornado
+                            size="small" // Tamanho pequeno
+                            onClick={() => handlePromote(userItem.id)}
+                            disabled={modifyingUserId === userItem.id}
+                        >
+                            {modifyingUserId === userItem.id ? 'Promovendo...' : 'Promover'}
+                        </Button>
+                     )}
+                     {' '} {/* Espaço */}
 
-                   {/* Botão Rebaixar: Visível se userItem for admin E user logado for admin E userItem não for o user logado */}
-                   {userItem.tipo === 'admin' && user?.tipo === 'admin' && user?.id !== userItem.id && (
-                      <button
-                          onClick={() => handleDemote(userItem.id)}
-                          disabled={modifyingUserId === userItem.id}
-                      >
-                          {modifyingUserId === userItem.id ? 'Rebaixando...' : 'Rebaixar'}
-                      </button>
-                   )}
-                   {' '} {/* Espaço */}
+                     {/* Botão Rebaixar */}
+                     {userItem.tipo === 'admin' && user?.tipo === 'admin' && user?.id !== userItem.id && (
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleDemote(userItem.id)}
+                            disabled={modifyingUserId === userItem.id}
+                        >
+                            {modifyingUserId === userItem.id ? 'Rebaixando...' : 'Rebaixar'}
+                        </Button>
+                     )}
+                     {' '} {/* Espaço */}
 
-                   {/* Botão Deletar: Visível se user logado for admin E userItem não for o user logado */}
-                    {/* Nota: Lógica para super-admins ou outros usuários "protegidos" deve ser adicionada */}
-                    {user?.tipo === 'admin' && user?.id !== userItem.id && (
-                       <button
-                           onClick={() => handleDelete(userItem.id)}
-                           disabled={modifyingUserId === userItem.id}
-                       >
-                           {modifyingUserId === userItem.id ? 'Deletando...' : 'Deletar'}
-                       </button>
-                    )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                     {/* Botão Deletar */}
+                      {/* Lógica: Visível se user logado for admin E userItem não for o user logado */}
+                       {user?.tipo === 'admin' && user?.id !== userItem.id && (
+                          <Button
+                              variant="outlined"
+                              color="error" // Cor vermelha para erro
+                              size="small"
+                              onClick={() => handleDelete(userItem.id)}
+                              disabled={modifyingUserId === userItem.id}
+                          >
+                              {modifyingUserId === userItem.id ? 'Deletando...' : 'Deletar'}
+                          </Button>
+                       )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       ) : (
-        // Mensagem se não houver usuários (ou apenas o usuário logado)
-        <p>Nenhum usuário encontrado (ou apenas você).</p>
+        <Typography variant="body1">Nenhum usuário encontrado (ou apenas você).</Typography> // Mensagem se lista vazia
       )}
 
       {/* TODO: Adicionar funcionalidade de paginação ou filtros aqui */}
-       <p></p>
-       {/* Link para voltar */}
-        <p><Link to="/home">Voltar para o início</Link></p>
-    </div>
+       <Box mt={3}>
+          {/* Links ou botões de paginação/filtros */}
+       </Box>
+
+
+       <Box mt={3}>
+         {/* Link para voltar (já no Layout) */}
+         {/* <Link to="/home">Voltar para o início</Link> */}
+       </Box>
+    </Box>
   );
 }
 

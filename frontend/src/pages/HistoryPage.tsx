@@ -1,14 +1,17 @@
 // frontend/src/pages/HistoryPage.tsx
 
-import React, { useEffect, useState } from 'react';
-import api from '../services/api'; // Importe a instância axios configurada
+import React, { useEffect, useState, useCallback } from 'react'; // Importar useCallback
+import api from '../services/api';
 // Importe Link ou useNavigate se precisar de navegação
 import { Link, useNavigate } from 'react-router-dom';
-// Importe useAuth para obter o usuário logado (não necessário para buscar histórico, mas pode ser útil para UX)
+// Importe useAuth (opcional, já que o endpoint filtra)
 // import { useAuth } from '../context/AuthContext';
 
-// Reutilize ou defina interfaces para os dados de histórico
-// Baseado no schema HistoricoReservaRead do backend
+// Importar componentes de Material UI para listas e layout
+import { Box, Typography, CircularProgress, List, ListItem, ListItemText, Paper, Button } from '@mui/material';
+import theme from '../theme';
+
+// Reutilize ou defina interfaces para os dados de histórico (já definida)
 interface HistoricoReservaData {
   id: number; // ID do histórico (mesmo ID da reserva original)
   ambiente_id: number; // ID do ambiente no histórico
@@ -18,8 +21,8 @@ interface HistoricoReservaData {
   data_criacao: string; // Data de criação da solicitação original
   status: 'pendente' | 'confirmada' | 'cancelada' | 'finalizada'; // Status final da reserva
   motivo: string;
-  // Nota: HistoricoReservaRead NÃO inclui dados aninhados de Usuario ou Ambiente
-  // porque esses objetos podem não existir mais. Exibe apenas os IDs.
+  nome_amb: string; // Adicionado
+  nome_usu: string; // Adicionado
 }
 
 
@@ -98,48 +101,85 @@ function HistoryPage() { // Renomeado
 
   // Renderização condicional
   if (loading) {
-    return <div>Carregando histórico de reservas...</div>;
+    return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}> {/* Centralizar spinner */}
+            <CircularProgress />
+            <Typography variant="h6" sx={{ marginLeft: 2 }}>Carregando histórico pessoal...</Typography>
+        </Box>
+    );
   }
 
   if (error) {
-    return <div style={{ color: 'red' }}>{error}</div>;
+    return <Box sx={{ padding: 3 }}><Typography variant="h6" color="error">{error}</Typography></Box>;
   }
 
+
   return (
-    <div>
-      <h1>Meu Histórico de Reservas</h1>
+    // **ADICIONADO:** Container principal da página (cinza claro)
+    <Box sx={{ padding: 3, backgroundColor: theme.palette.background.default }}> {/* Padding e fundo cinza */}
+      <Typography variant="h4" component="h1" gutterBottom>Meu Histórico de Reservas</Typography> {/* Título */}
+
+      {/* TODO: Adicionar filtros aqui (menos comum para histórico pessoal, mas possível) */}
+      {/* Ex: Filtro por status final, data de criação/fim */}
+
 
       {/* Exibir a lista de registros de histórico */}
       {historico.length > 0 ? (
-        <ul>
+        // **MODIFICADO:** Usar componentes List, ListItem, ListItemText, Paper
+        <List component={Paper} elevation={2} sx={{ padding: 2 }}> {/* Lista dentro de um Paper com sombra */}
           {historico.map(registro => (
-            <li key={registro.id}>
-              {/* Exibir detalhes do registro de histórico */}
-              {/* Note que não temos dados aninhados de usuário/ambiente, apenas IDs */}
-              <strong>Reserva ID Original: {registro.id}</strong> (Status Final: {registro.status.toUpperCase()})
-              <p>Ambiente ID: {registro.ambiente_id}</p> {/* Exibe apenas o ID do ambiente */}
-              <p>Período: {formatDateTimeLocal(registro.data_inicio)} a {formatDateTimeLocal(registro.data_fim)}</p>
-              <p>Motivo: {registro.motivo}</p>
-              <p>Solicitada originalmente em: {formatDateTimeUtc(registro.data_criacao)}</p>
-              {/* Opcional: Exibir o ID do usuário que solicitou (o usuário logado) */}
-              {/* <p>Usuário Solicitante ID: {registro.usuario_id}</p> */}
+            // Cada item da lista
+            <ListItem
+               key={registro.id}
+               // Opcional: Tornar o item clicável para ver detalhes do histórico? (Se tiver página)
+               // component={Link} to={`/historico/${registro.id}`}
+               divider // Adicionar um divisor
+               sx={{ '&:hover': { backgroundColor: theme.palette.action.hover } }} // Efeito hover sutil
+            >
+              <ListItemText // Texto principal e secundário do item
+                 primary={
+                    // Conteúdo principal: Ambiente e Status Final
+                    <> {/* Fragmento para agrupar */}
+                       {/* Exibir nome do ambiente e status final */}
+                       <Typography variant="h6">
+                          {registro.nome_amb} (Status Final: {registro.status.toUpperCase()})
+                       </Typography>
+                       {/* Exibir nome do usuário (será o próprio usuário logado) */}
+                       <Typography variant="body1">
+                           Solicitado por: {registro.nome_usu} {/* Nome do usuário (o próprio) */}
+                       </Typography>
+                    </>
+                 }
+                 secondary={
+                    // Conteúdo secundário: Período, Motivo, Solicitada Originalmente Em
+                    <> {/* Fragmento para agrupar */}
+                       <Typography variant="body2" color="textSecondary">
+                           Período: {formatDateTimeLocal(registro.data_inicio)} a {formatDateTimeLocal(registro.data_fim)} {/* Usar a função para horário UTC se aplicável, ou API local */}
+                       </Typography>
+                       <Typography variant="body2" color="textSecondary">Motivo: {registro.motivo}</Typography>
+                       <Typography variant="body2" color="textSecondary">Solicitada originalmente em: {formatDateTimeUtc(registro.data_criacao)}</Typography> {/* Usar a função para horário UTC */}
+                    </>
+                 }
+              />
+               {/* Opcional: Adicionar botões para ver detalhes completos (se tiver página) */}
 
-              {/* TODO: Adicionar mais detalhes se necessário */}
-            </li>
+            </ListItem>
           ))}
-        </ul>
+        </List>
       ) : (
-        // Mensagem se não houver histórico
-        <p>Você não tem registros no histórico de reservas.</p>
+        <Typography variant="body1">Você não tem registros no histórico de reservas.</Typography> // Mensagem se lista vazia
       )}
 
-      {/* TODO: Adicionar link ou botão para voltar */}
-       <p>
-         {/* Decida para onde voltar: lista de minhas reservas ou início */}
-         <Link to="/minhas-reservas">Voltar para Minhas Reservas</Link> | <Link to="/home">Voltar para o início</Link>
-       </p>
+      {/* TODO: Adicionar funcionalidade de paginação aqui (menos comum para histórico pessoal, mas possível) */}
 
-    </div>
+
+       <Box mt={3}> {/* Espaço acima */}
+         {/* Link para voltar (já no Layout) */}
+         {/* <Link to="/home">Voltar para o início</Link> */}
+          {/* Adicionar link para voltar para Minhas Reservas */}
+           <Button component={Link} to="/minhas-reservas" variant="outlined">Voltar para Minhas Reservas</Button>
+       </Box>
+    </Box>
   );
 }
 

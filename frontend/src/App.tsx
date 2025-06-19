@@ -11,14 +11,13 @@ import CadastroUsuario from './pages/CadastroUsuario';
 import AmbientesPage from './pages/AmbientesPage';
 import AmbienteDetailPage from './pages/AmbienteDetailPage';
 import MyReservasPage from './pages/MyReservasPage';
-import CalendarPage from './pages/CalendarPage';
+// import CalendarPage from './pages/CalendarPage';
 import RequestReservaPage from './pages/RequestReservaPage';
 import HistoryPage from './pages/HistoryPage'; // Histórico Pessoal
 import ManageUsersPage from './pages/ManageUsersPage';
 import ManageAmbientesPage from './pages/ManageAmbientesPage';
 import ManageReservasPage from './pages/ManageReservasPage';
 import HistoryPageAdmin from './pages/HistoryPageAdmin'; // Histórico Geral
-import DashboardPage from './pages/DashboardPage';
 
 // Importe seu componente de Rota Protegida E o componente de Layout
 import ProtectedRoute from './components/ProtectedRoute';
@@ -87,15 +86,15 @@ function App() { // Componente App
                   <Layout><MyReservasPage /></Layout>
                 </ProtectedRoute>
               }
-            />
-            <Route
-               path="/calendario"
-               element={
-                 <ProtectedRoute>
-                   {/* **ADICIONADO:** Layout envolve a página CalendarPage */}
-                   <Layout><CalendarPage /></Layout>
-                 </ProtectedRoute>
-               }
+            // />
+            // <Route
+            //    path="/calendario"
+            //    element={
+            //      <ProtectedRoute>
+            //        {/* **ADICIONADO:** Layout envolve a página CalendarPage */}
+            //        <Layout><CalendarPage /></Layout>
+            //      </ProtectedRoute>
+            //    }
              />
              <Route
                path="/solicitar-reserva"

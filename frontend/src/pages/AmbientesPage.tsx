@@ -1,10 +1,12 @@
 // frontend/src/pages/AmbientesPage.tsx
 
-import React, { useEffect, useState } from 'react';
-import api from '../services/api'; // Importe a instância axios configurada
+import React, { useEffect, useState, useCallback } from 'react'; // Importar useCallback
+import api from '../services/api';
+import { Link, useNavigate } from 'react-router-dom';
 
-// Importa o componente Link de react-router-dom
-import { Link } from 'react-router-dom';
+// Importar componentes de Material UI para listas e layout
+import { Box, Typography, CircularProgress, List, ListItem, ListItemText, Paper, Button } from '@mui/material';
+import theme from '../theme';
 
 // Baseado no schema AmbienteRead do backend
 interface AmbienteData {
@@ -61,49 +63,79 @@ function AmbientesPage() { // Renomeado para maior clareza
   }, []); // O array vazio [] garante que roda apenas uma vez ao montar
 
 
-  // Renderização condicional baseada no estado de carregamento e erro
+  // Renderização condicional (loading/error)
   if (loading) {
-    return <div>Carregando ambientes...</div>;
+    return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}> {/* Centralizar spinner */}
+            <CircularProgress />
+            <Typography variant="h6" sx={{ marginLeft: 2 }}>Carregando ambientes...</Typography>
+        </Box>
+    );
   }
 
   if (error) {
-    return <div style={{ color: 'red' }}>{error}</div>;
+    return <Box sx={{ padding: 3 }}><Typography variant="h6" color="error">{error}</Typography></Box>;
   }
 
-  // Se não estiver carregando e não houver erro, exibe a lista.
+
   return (
-    <div>
-      <h1>Lista de Ambientes</h1>
+    // **ADICIONADO:** Container principal da página (cinza claro)
+    <Box sx={{ padding: 3, backgroundColor: theme.palette.background.default }}> {/* Padding e fundo cinza */}
+      <Typography variant="h4" component="h1" gutterBottom>Lista de Ambientes</Typography> {/* Título */}
 
       {/* Exibir a lista de ambientes */}
       {ambientes.length > 0 ? (
-        <ul>
+        // **MODIFICADO:** Usar componentes List, ListItem, ListItemText
+        <List component={Paper} elevation={2} sx={{ padding: 2 }}> {/* Lista dentro de um Paper com sombra */}
           {ambientes.map(ambiente => (
-            <li key={ambiente.id}>
-              {/* Adicionado Link para a página de detalhes */}
-              {/* O caminho inclui o ID do ambiente */}
-              <Link to={`/ambientes/${ambiente.id}`}>
-                 <strong>{ambiente.nome}</strong> (Tipo: {ambiente.tipo_ambiente}, Cap: {ambiente.capacidade})
-              </Link>
-              <p>{ambiente.descricao}</p>
-              {/* Opcional: Mostrar status ativo e comodidades */}
-              <small>
-                Ativo: {ambiente.ativo ? 'Sim' : 'Não'} |
-                TV: {ambiente.tv ? 'Sim' : 'Não'} |
-                Projetor: {ambiente.projetor ? 'Sim' : 'Não'} |
-                Ar Condicionado: {ambiente.ar_condicionado ? 'Sim' : 'Não'}
-              </small>
-              <p></p>
-              {/* TODO: Adicionar link ou botão para solicitar reserva aqui (usando o ID do ambiente) */}
-            </li>
+            // Cada item da lista
+            <ListItem
+               key={ambiente.id}
+               component={Link} // Fazer o item inteiro clicável e linkar
+               to={`/ambientes/${ambiente.id}`}
+               divider // Adicionar um divisor entre os itens
+               sx={{ '&:hover': { backgroundColor: '#f0f0f0' } }} // Efeito hover sutil
+            >
+              <ListItemText // Texto principal e secundário do item
+                 primary={
+                    // Conteúdo principal: Nome e Capacidade
+                    <Typography variant="h6">
+                       {ambiente.nome} (Cap: {ambiente.capacidade})
+                    </Typography>
+                 }
+                 secondary={
+                    // Conteúdo secundário: Descrição e Comodidades
+                    <> {/* Fragmento para agrupar */}
+                       <Typography variant="body2" color="textSecondary">{ambiente.descricao}</Typography>
+                       <Typography variant="body2" color="textSecondary">
+                         Ativo: {ambiente.ativo ? 'Sim' : 'Não'} |
+                         TV: {ambiente.tv ? 'Sim' : 'Não'} |
+                         Projetor: {ambiente.projetor ? 'Sim' : 'Não'} |
+                         Ar Condicionado: {ambiente.ar_condicionado ? 'Sim' : 'Não'}
+                       </Typography>
+                    </>
+                 }
+              />
+              {/* Opcional: Adicionar link ou botão para solicitar reserva aqui */}
+               {/* Ex: <Button variant="outlined" size="small" onClick={() => navigate(`/solicitar-reserva?ambienteId=${ambiente.id}`)}>Solicitar</Button> */}
+            </ListItem>
           ))}
-        </ul>
+        </List>
       ) : (
-        <p>Nenhum ambiente encontrado.</p>
+        <Typography variant="body1">Nenhum ambiente encontrado.</Typography> // Mensagem se lista vazia
       )}
 
       {/* TODO: Adicionar funcionalidade de paginação ou filtros aqui */}
-    </div>
+       <Box mt={3}> {/* Espaço acima */}
+          {/* Links ou botões de paginação/filtros */}
+       </Box>
+
+
+       <Box mt={3}> {/* Espaço acima */}
+         {/* Link para voltar (já no Layout, mas pode adicionar aqui também) */}
+         {/* <Link to="/home">Voltar para o início</Link> */}
+       </Box>
+    </Box>
   );
 }
 

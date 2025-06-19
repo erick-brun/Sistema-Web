@@ -1,11 +1,13 @@
 // frontend/src/pages/MyReservasPage.tsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react'; // Importar useCallback
 import api from '../services/api';
-// Importe Link e useNavigate
 import { Link, useNavigate } from 'react-router-dom';
-// Importe useAuth
 import { useAuth } from '../context/AuthContext';
+
+// Importar componentes de Material UI para listas e layout
+import { Box, Typography, CircularProgress, List, ListItem, ListItemText, Paper, Button } from '@mui/material';
+import theme from '../theme';
 
 // Reutilize ou defina interfaces para os dados aninhados
 interface UsuarioReadData {
@@ -197,68 +199,111 @@ function MyReservasPage() {
     };
 
 
-  // Renderização condicional (loading do AuthContext OU loading das Reservas)
+  // Renderização condicional (loading/error)
   if (authLoading || loadingReservas) {
-    return <div>Carregando...</div>; // Exibe mensagem de carregamento
+    return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}> {/* Centralizar spinner */}
+            <CircularProgress />
+            <Typography variant="h6" sx={{ marginLeft: 2 }}>Carregando minhas reservas...</Typography>
+        </Box>
+    );
   }
 
   if (error) {
-    return <div style={{ color: 'red' }}>{error}</div>; // Exibe mensagem de erro
+    return <Box sx={{ padding: 3 }}><Typography variant="h6" color="error">{error}</Typography></Box>;
   }
 
-  // Nota: Se não estiver carregando e não houver erro, e o usuário logado (user) existir,
-  // a lista de reservas pode estar vazia.
 
   return (
-    <div>
-      <h1>Minhas Reservas</h1>
+    // **ADICIONADO:** Container principal da página (cinza claro)
+    <Box sx={{ padding: 3, backgroundColor: theme.palette.background.default }}> {/* Padding e fundo cinza */}
+      <Typography variant="h4" component="h1" gutterBottom>Minhas Reservas</Typography> {/* Título */}
 
       {/* Exibir a lista de reservas */}
       {reservas.length > 0 ? (
-        <ul>
+        // **MODIFICADO:** Usar componentes List, ListItem, ListItemText, Paper
+        <List component={Paper} elevation={2} sx={{ padding: 2 }}> {/* Lista dentro de um Paper com sombra */}
           {reservas.map(reserva => (
-            <li key={reserva.id}>
-              {/* Exibir detalhes da reserva (como antes) */}
-              <strong>Reserva ID: {reserva.id}</strong> (Status: {reserva.status.toUpperCase()})
-              <p>Ambiente: {reserva.ambiente.nome}</p>
-              <p>Período: {formatDateTimeLocal(reserva.data_inicio)} a {formatDateTimeLocal(reserva.data_fim)}</p>
-              <p>Motivo: {reserva.motivo}</p>
-              <p>Solicitada em: {formatDateTimeUtc(reserva.data_criacao)}</p>
-              <p>Solicitado por: {reserva.usuario.nome}</p> {/* Acessando dado aninhado */}
+            // Cada item da lista
+            <ListItem
+               key={reserva.id}
+               // Opcional: Tornar o item inteiro clicável (para ver detalhes? Se tiver página de detalhes de reserva)
+               // component={Link} to={`/reservas/${reserva.id}`}
+               divider // Adicionar um divisor entre os itens
+               sx={{ '&:hover': { backgroundColor: theme.palette.action.hover } }} // Efeito hover sutil usando tema
+            >
+              <ListItemText // Texto principal e secundário do item
+                 primary={
+                    // Conteúdo principal: Ambiente, Período, Status
+                    <> {/* Fragmento para agrupar */}
+                       <Typography variant="h6">
+                          {reserva.ambiente.nome} (Status: {reserva.status.toUpperCase()})
+                       </Typography>
+                       <Typography variant="body1">
+                           {formatDateTimeLocal(reserva.data_inicio)} a {formatDateTimeLocal(reserva.data_fim)} {/* Usar a função para horário local */}
+                       </Typography>
+                    </>
+                 }
+                 secondary={
+                    // Conteúdo secundário: Motivo, Solicitado Por (usuário logado), Solicitada Em, Botões
+                    <> {/* Fragmento para agrupar */}
+                       <Typography variant="body2" color="textSecondary">Motivo: {reserva.motivo}</Typography>
+                       {/* Usuário solicitante (é o próprio usuário logado nesta página) */}
+                       <Typography variant="body2" color="textSecondary">Solicitado por: {reserva.usuario.nome}</Typography> {/* Acessando dado aninhado */}
+                       <Typography variant="body2" color="textSecondary">Solicitada em: {formatDateTimeUtc(reserva.data_criacao)}</Typography> {/* Usar a função para horário UTC */}
 
-              {/* TODO: Adicionar botões para Editar/Cancelar (condicionalmente) */}
-              {/* Lógica: Exibir se status for PENDENTE E o usuário logado for o dono da reserva */}
-              {/* Assumindo que a API retorna reserva.usuario.id com o ID do dono */}
-              {reserva.status === 'pendente' && user?.id === reserva.usuario.id && (
-                  <> {/* Fragmento React para agrupar botões */}
-                     {/* Botão Editar */}
-                     {/* Use um Link se a edição for em outra página, ou um botão para modal */}
-                     <button onClick={() => handleEdit(reserva.id)}>Editar</button> {/* Chama handleEdit passando o ID */}
-                     {' '} {/* Espaço entre botões */}
-                     {/* Botão Cancelar */}
-                     <button
-                         onClick={() => handleCancel(reserva.id)} // Chama handleCancel passando o ID
-                         disabled={cancelingReservaId === reserva.id} // Desabilita durante o cancelamento
-                     >
-                         {cancelingReservaId === reserva.id ? 'Cancelando...' : 'Cancelar'} {/* Texto dinâmico */}
-                     </button>
-                  </>
-              )}
-               <p></p> {/* Espaço entre itens da lista */}
-            </li>
+                       {/* Botões para Editar/Cancelar (condicionalmente) */}
+                       {/* Lógica: Exibir se status for PENDENTE E o usuário logado for o dono da reserva */}
+                       {/* A lógica de permissão está no backend e a condição aqui é para UX */}
+                       {reserva.status === 'pendente' && user?.id === reserva.usuario.id && (
+                           <Box mt={1}> {/* Espaço acima dos botões */}
+                              {/* Botão Editar */}
+                              {/* Use um Link se a edição for em outra página, ou um botão para modal */}
+                              <Button
+                                  variant="outlined"
+                                  size="small"
+                                  onClick={() => handleEdit(reserva.id)} // Chama handleEdit passando o ID
+                              >
+                                  Editar
+                              </Button>
+                              {' '} {/* Espaço */}
+                              {/* Botão Cancelar */}
+                              <Button
+                                  variant="outlined"
+                                  color="error" // Cor vermelha para erro
+                                  size="small"
+                                  onClick={() => handleCancel(reserva.id)} // Chama handleCancel passando o ID
+                                  disabled={cancelingReservaId === reserva.id} // Desabilita durante o cancelamento
+                              >
+                                  {cancelingReservaId === reserva.id ? 'Cancelando...' : 'Cancelar'} {/* Texto dinâmico */}
+                              </Button>
+                           </Box>
+                       )}
+                    </>
+                 }
+              />
+               {/* Opcional: Adicionar uma div ou Box extra para espaçamento entre itens se o divider não for suficiente */}
+               {/* <Box sx={{ mb: 2 }}></Box> */} {/* Exemplo: margin bottom de 16px */}
+
+            </ListItem>
           ))}
-        </ul>
+        </List>
       ) : (
-        // Mensagem se não houver reservas
-        <p>Você não tem nenhuma reserva cadastrada.</p>
+        <Typography variant="body1">Você não tem nenhuma reserva cadastrada.</Typography> // Mensagem se lista vazia
       )}
 
-      {/* TODO: Adicionar link ou botão para solicitar uma nova reserva */}
-       <p>
-         <Link to="/solicitar-reserva">Solicitar Nova Reserva</Link> {/* Link para a página de solicitação */}
-       </p>
+      {/* TODO: Adicionar funcionalidade de paginação ou filtros aqui (menos comum para "Minhas Reservas") */}
+       <Box mt={3}>
+          {/* Links ou botões de paginação/filtros */}
+       </Box>
 
-    </div>
+
+      {/* Link para solicitar nova reserva */}
+       <Box mt={3}>
+         <Button variant="contained" component={Link} to="/solicitar-reserva">Solicitar Nova Reserva</Button> {/* Usar Button component Link */}
+       </Box>
+
+    </Box>
   );
 }
 

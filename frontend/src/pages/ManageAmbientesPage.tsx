@@ -1,15 +1,18 @@
 // frontend/src/pages/ManageAmbientesPage.tsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import api from '../services/api';
-import { useAuth } from '../context/AuthContext'; // Para verificar se é admin
-import { Link, useNavigate } from 'react-router-dom'; // Para navegação
+import { useAuth } from '../context/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
 
-// Importar o componente AmbienteForm (vamos criá-lo em seguida)
+// Importar componentes de Material UI para tabelas, formulários e layout
+import { Box, Typography, CircularProgress, Paper, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Button } from '@mui/material'; // Adicionado Table components
+// Importar componentes de formulário (se usar para o formulário inline ou modal)
+import { TextField, Select, MenuItem, FormControl, InputLabel, Checkbox, FormControlLabel, useTheme } from '@mui/material';
+import theme from '../theme';
+
+// Importar o componente AmbienteForm (se usar)
 import AmbienteForm from '../components/AmbienteForm'; // <--- Importa o componente do formulário
-
-// Opcional: Importar componentes de UI (Material UI TextField, Button, Select, Checkbox, FormControlLabel, Typography, Box)
-import { Button } from '@mui/material'; // Importando Button para o botão "Novo Ambiente"
 
 
 // Reutilize a interface AmbienteData (ou AmbienteReadData)
@@ -42,6 +45,7 @@ export interface AmbienteFormData { // Exportar a interface para ser usada em Am
 function ManageAmbientesPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const theme = useTheme();
 
   // State para armazenar a lista de ambientes
   const [ambientes, setAmbientes] = useState<AmbienteData[]>([]);
@@ -246,25 +250,31 @@ function ManageAmbientesPage() {
   };
 
 
-  // Renderização condicional (estado de carregamento inicial do contexto OU da lista de ambientes)
+  // Renderização condicional (loading/error)
   if (authLoading || loading) {
-    return <div>Carregando gerenciamento de ambientes...</div>;
+    return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+            <CircularProgress />
+            <Typography variant="h6" sx={{ marginLeft: 2 }}>Carregando gerenciamento de ambientes...</Typography>
+        </Box>
+    );
   }
 
   // Verificar se o usuário logado é admin (proteção frontend/UX)
   if (user?.tipo !== 'admin') {
-       return <div>Acesso negado. Esta página é apenas para administradores.</div>;
+       return <Box sx={{ padding: 3 }}><Typography variant="h6" color="error">Acesso negado. Esta página é apenas para administradores.</Typography></Box>;
   }
 
-  // Exibir erro se houver e não estiver carregando
+
   if (error && !loading) {
-    return <div style={{ color: 'red' }}>{error}</div>;
+    return <Box sx={{ padding: 3 }}><Typography variant="h6" color="error">{error}</Typography></Box>;
   }
 
 
   return (
-    <div>
-      <h1>Gerenciar Ambientes (Admin)</h1>
+    // **ADICIONADO:** Container principal da página (cinza claro)
+    <Box sx={{ padding: 3, backgroundColor: theme.palette.background.default }}> {/* Padding e fundo cinza */}
+      <Typography variant="h4" component="h1" gutterBottom>Gerenciar Ambientes (Admin)</Typography> {/* Título */}
 
       {/* Botão para abrir formulário de CRIAÇÃO */}
       {/* Renderizar apenas se o formulário NÃO estiver aberto */}
@@ -282,17 +292,14 @@ function ManageAmbientesPage() {
 
       {/* Renderizar o formulário de criação/edição (visível se isFormOpen é true) */}
       {isFormOpen && (
-          // **ADICIONADO:** Usando o componente AmbienteForm
+          // **ADICIONADO:** Usando o componente AmbienteForm (com estados e handlers passados)
+          // O componente AmbienteForm contém a estrutura do formulário e sua lógica interna
           <AmbienteForm
-              // Passa initialData (dados do ambiente sendo editado, null para criação)
-              initialData={ambienteBeingEdited}
-              // Passa a função de submissão (que lida com a chamada API)
-              onSubmit={handleSubmitForm}
-              // Passa a função para fechar o formulário (botão Cancelar)
-              onCancel={handleCloseForm}
-              // Passa estados de submissão e erro para o formulário controlar seus botões/mensagens
-              isSubmitting={isSubmittingForm}
-              submitError={formSubmissionError}
+              initialData={ambienteBeingEdited} // Passa dados para edição (null para criação)
+              onSubmit={handleSubmitForm} // Passa a função de submissão
+              onCancel={handleCloseForm} // Passa a função de cancelamento
+              isSubmitting={isSubmittingForm} // Passa estado de submissão
+              submitError={formSubmissionError} // Passa erro de submissão
           />
       )}
 
@@ -301,74 +308,89 @@ function ManageAmbientesPage() {
       {/* Renderizar apenas se a lista NÃO estiver carregando E o formulário NÃO estiver aberto */}
       {!loading && !isFormOpen && (
            ambientes.length > 0 ? (
-             <table> {/* Usar uma tabela */}
-               <thead>
-                 <tr>
-                   <th>ID</th>
-                   <th>Nome</th>
-                   <th>Capacidade</th>
-                   <th>Tipo</th>
-                   <th>Ativo</th>
-                   <th>Comodidades</th>
-                   <th>Ações</th> {/* Coluna para botões */}
-                 </tr>
-               </thead>
-               <tbody>
-                 {ambientes.map(ambiente => (
-                   <tr key={ambiente.id}>
-                     <td>{ambiente.id}</td>
-                     <td>{ambiente.nome}</td>
-                     <td>{ambiente.capacidade}</td>
-                     <td>{ambiente.tipo_ambiente}</td>
-                     <td>{ambiente.ativo ? 'Sim' : 'Não'}</td>
-                     <td>
-                        {/* Exibir Comodidades */}
-                        {ambiente.tv ? 'TV ' : ''}
-                        {ambiente.projetor ? 'Projetor ' : ''}
-                        {ambiente.ar_condicionado ? 'Ar Cond. ' : ''}
-                     </td>
-                     <td>
-                        {/* Botões Editar e Deletar */}
-                        {/* Renderizar apenas se o formulário NÃO estiver aberto */}
-                        {!isFormOpen && (
-                           // Botão Editar (chama handleOpenEditForm)
-                           <Button
-                               variant="outlined" // Estilo contornado
-                               size="small" // Tamanho pequeno
-                               onClick={() => handleOpenEditForm(ambiente)}
-                               disabled={modifyingAmbienteId !== null} // Desabilitar se outro item estiver sendo modificado
-                           >
-                               Editar
-                           </Button>
-                        )}
-                        {' '} {/* Espaço */}
+             // **MODIFICADO:** Usar componentes de Tabela do Material UI
+             <TableContainer component={Paper} elevation={2} sx={{ marginTop: 2 }}> {/* Tabela dentro de um Paper com sombra, espaço acima */}
+               <Table sx={{ minWidth: 650 }} aria-label="manage ambientes table"> {/* minWidth para rolagem horizontal */}
+                 <TableHead> {/* Cabeçalho */}
+                   <TableRow>
+                     <TableCell>ID</TableCell> {/* Célula de cabeçalho */}
+                     <TableCell>Nome</TableCell>
+                     <TableCell>Capacidade</TableCell>
+                     <TableCell>Tipo</TableCell>
+                     <TableCell align="center">Ativo</TableCell> {/* Alinhar centralizado */}
+                     <TableCell>Comodidades</TableCell>
+                     <TableCell align="center">Ações</TableCell> {/* Alinhar centralizado */}
+                   </TableRow>
+                 </TableHead>
+                 <TableBody> {/* Corpo da tabela */}
+                   {ambientes.map((ambiente) => (
+                     <TableRow
+                       key={ambiente.id}
+                       // Adicionar efeito hover (opcional)
+                        sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': { backgroundColor: theme.palette.action.hover } }} // Remover borda na última linha, efeito hover
+                     >
+                       <TableCell component="th" scope="row">{ambiente.id}</TableCell> {/* Célula com scope="row" para acessibilidade */}
+                       <TableCell>{ambiente.nome}</TableCell>
+                       <TableCell>{ambiente.capacidade}</TableCell>
+                       <TableCell>{ambiente.tipo_ambiente}</TableCell>
+                       <TableCell align="center">{ambiente.ativo ? 'Sim' : 'Não'}</TableCell>
+                       <TableCell>
+                          {/* Exibir Comodidades */}
+                          <Typography variant="body2">
+                             {ambiente.tv ? 'TV ' : ''}
+                             {ambiente.projetor ? 'Projetor ' : ''}
+                             {ambiente.ar_condicionado ? 'Ar Cond. ' : ''}
+                          </Typography>
+                       </TableCell>
+                       <TableCell align="center"> {/* Célula para botões de ação, alinhada centralmente */}
+                          {/* Botões Editar e Deletar */}
+                          {/* Renderizar apenas se o formulário NÃO estiver aberto */}
+                          {!isFormOpen && (
+                             // Botão Editar (chama handleOpenEditForm)
+                             <Button
+                                 variant="outlined" // Estilo contornado
+                                 size="small" // Tamanho pequeno
+                                 onClick={() => handleOpenEditForm(ambiente)}
+                                 disabled={modifyingAmbienteId !== null} // Desabilitar se outro item estiver sendo modificado
+                             >
+                                 Editar
+                             </Button>
+                          )}
+                          {' '} {/* Espaço */}
 
-                        {/* Botão Deletar (chama handleDelete, desabilitado durante modificação ou se formulário aberto) */}
-                        <Button
-                            variant="outlined"
-                            color="error" // Cor vermelha para erro
-                            size="small"
-                            onClick={() => handleDelete(ambiente.id)}
-                            disabled={modifyingAmbienteId === ambiente.id || isFormOpen || modifyingAmbienteId !== null} // Desabilitar se este item sendo modificado, se formulário aberto, ou se outro item sendo modificado
-                        >
-                            {modifyingAmbienteId === ambiente.id ? 'Deletando...' : 'Deletar'} {/* Texto dinâmico */}
-                        </Button>
-                     </td>
-                   </tr>
-                 ))}
-               </tbody>
-             </table>
+                          {/* Botão Deletar (chama handleDelete, desabilitado durante modificação ou se formulário aberto) */}
+                          <Button
+                              variant="outlined"
+                              color="error" // Cor vermelha para erro
+                              size="small"
+                              onClick={() => handleDelete(ambiente.id)}
+                              disabled={modifyingAmbienteId === ambiente.id || isFormOpen || modifyingAmbienteId !== null} // Desabilitar se este item sendo modificado, se formulário aberto, ou se outro item sendo modificado
+                          >
+                              {modifyingAmbienteId === ambiente.id ? 'Deletando...' : 'Deletar'} {/* Texto dinâmico */}
+                          </Button>
+                       </TableCell>
+                     </TableRow>
+                   ))}
+                 </TableBody>
+               </Table>
+             </TableContainer>
            ) : (
-             <p>Nenhum ambiente encontrado.</p> // Mensagem se lista vazia
+             <Typography variant="body1">Nenhum ambiente encontrado.</Typography> // Mensagem se lista vazia
            )
       )}
 
 
       {/* TODO: Adicionar funcionalidade de paginação ou filtros aqui */}
-       <p></p>
-       {/* Link para voltar */}
-        <p><Link to="/home">Voltar para o início</Link></p>
-    </div>
+       <Box mt={3}>
+          {/* Links ou botões de paginação/filtros */}
+       </Box>
+
+
+       <Box mt={3}>
+         {/* Link para voltar (já no Layout) */}
+         {/* <Link to="/home">Voltar para o início</Link> */}
+       </Box>
+    </Box>
   );
 }
 

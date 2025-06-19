@@ -1,9 +1,12 @@
 // frontend/src/pages/AmbienteDetailPage.tsx
 
-import React, { useEffect, useState } from 'react';
-// Importe useParams para obter parâmetros da URL
-import { useParams, useNavigate } from 'react-router-dom';
-import api from '../services/api'; // Importe a instância axios configurada
+import React, { useEffect, useState, useCallback } from 'react'; // Importar useCallback
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import api from '../services/api';
+
+// Importar componentes de Material UI
+import { Box, Typography, CircularProgress, Paper, Button } from '@mui/material';
+import theme from '../theme';
 
 interface AmbienteData {
   id: number; // ID do ambiente
@@ -83,45 +86,63 @@ function AmbienteDetailPage() { // Renomeado
   }, [ambienteId, navigate]); // Adiciona ambienteId e navigate como dependências do useEffect
 
 
-  // Renderização condicional
+  // Renderização condicional (loading/error)
   if (loading) {
-    return <div>Carregando detalhes do ambiente...</div>;
+    return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}> {/* Centralizar spinner */}
+            <CircularProgress />
+            <Typography variant="h6" sx={{ marginLeft: 2 }}>Carregando detalhes do ambiente...</Typography>
+        </Box>
+    );
   }
 
   if (error) {
-    return <div style={{ color: 'red' }}>{error}</div>;
+    return <Box sx={{ padding: 3 }}><Typography variant="h6" color="error">{error}</Typography></Box>;
   }
 
   if (!ambiente) {
-      // Caso não haja erro nem carregamento, mas o ambiente ainda é null (ex: erro 404 tratado pelo redirecionamento)
-      // Ou se o ID não foi fornecido na URL (tratado no if(!ambienteId)).
-      // Se você redireciona para 404, este estado talvez não seja alcançado.
-       return <div>Ambiente não encontrado ou ID inválido.</div>;
+       // Caso não haja erro nem carregamento, mas o ambiente ainda é null (ex: erro 404 tratado pelo redirecionamento)
+       return <div>Ambiente não encontrado ou ID inválido.</div>; // Pode estilizar melhor esta mensagem
   }
 
-  // Se não estiver carregando, não houver erro, e ambiente existir, exibe os detalhes.
-  return (
-    <div>
-      <h1>Detalhes do Ambiente: {ambiente.nome}</h1>
 
-      {/* Exibir os detalhes do ambiente */}
-      <div>
-        <p><strong>ID:</strong> {ambiente.id}</p>
-        <p><strong>Tipo:</strong> {ambiente.tipo_ambiente}</p>
-        <p><strong>Capacidade:</strong> {ambiente.capacidade}</p>
-        <p><strong>Descrição:</strong> {ambiente.descricao}</p>
-        <p><strong>Status:</strong> {ambiente.ativo ? 'Ativo' : 'Inativo'}</p>
-        <p><strong>Comodidades:</strong></p>
-        <ul>
-          <li>TV: {ambiente.tv ? 'Sim' : 'Não'}</li>
-          <li>Projetor: {ambiente.projetor ? 'Sim' : 'Não'}</li>
-          <li>Ar Condicionado: {ambiente.ar_condicionado ? 'Sim' : 'Não'}</li>
-        </ul>
-      </div>
+  return (
+    // **ADICIONADO:** Container principal da página (cinza claro)
+    <Box sx={{ padding: 3, backgroundColor: theme.palette.background.default }}> {/* Padding e fundo cinza */}
+      <Typography variant="h4" component="h1" gutterBottom>Detalhes do Ambiente: {ambiente.nome}</Typography> {/* Título */}
+
+      {/* **MODIFICADO:** Usar Paper para envolver os detalhes */}
+      <Paper elevation={2} sx={{ padding: 3 }}> {/* Paper com sombra e padding interno */}
+
+         {/* Exibir os detalhes do ambiente */}
+         <Box> {/* Usar Box para layout */}
+            {/* Usar Typography para cada detalhe */}
+           <Typography variant="body1" gutterBottom><strong>ID:</strong> {ambiente.id}</Typography> {/* **MODIFICADO:** Usar Typography */}
+           <Typography variant="body1" gutterBottom><strong>Tipo:</strong> {ambiente.tipo_ambiente}</Typography> {/* **MODIFICADO:** Usar Typography */}
+           <Typography variant="body1" gutterBottom><strong>Capacidade:</strong> {ambiente.capacidade}</Typography> {/* **MODIFICADO:** Usar Typography */}
+           <Typography variant="body1" gutterBottom><strong>Descrição:</strong> {ambiente.descricao}</Typography> {/* **MODIFICADO:** Usar Typography */}
+           <Typography variant="body1" gutterBottom><strong>Status:</strong> {ambiente.ativo ? 'Ativo' : 'Inativo'}</Typography> {/* **MODIFICADO:** Usar Typography */}
+           <Typography variant="body1" gutterBottom><strong>Comodidades:</strong></Typography> {/* **MODIFICADO:** Título para comodidades */}
+           <Box component="ul" sx={{ pl: 3 }}> {/* Usar Box como lista (ul), padding left */}
+             <Typography component="li" variant="body1">TV: {ambiente.tv ? 'Sim' : 'Não'}</Typography> {/* **MODIFICADO:** Usar Typography como item de lista (li) */}
+             <Typography component="li" variant="body1">Projetor: {ambiente.projetor ? 'Sim' : 'Não'}</Typography> {/* **MODIFICADO:** Usar Typography como item de lista (li) */}
+             <Typography component="li" variant="body1">Ar Condicionado: {ambiente.ar_condicionado ? 'Sim' : 'Não'}</Typography> {/* **MODIFICADO:** Usar Typography como item de lista (li) */}
+           </Box>
+         </Box>
+
+      </Paper> {/* Fim do Paper */}
 
       {/* TODO: Adicionar botão ou link para voltar para a lista */}
       {/* TODO: Adicionar formulário para solicitar reserva deste ambiente */}
-    </div>
+
+       <Box mt={3}> {/* Espaço acima */}
+         {/* Adicionar botão para voltar para a lista de ambientes */}
+          <Button variant="outlined" onClick={() => navigate('/ambientes')}>Voltar para Lista</Button>
+           {' '} {/* Espaço */}
+          {/* Adicionar botão para solicitar reserva deste ambiente (passando ID) */}
+           <Button variant="contained" onClick={() => navigate(`/solicitar-reserva?ambienteId=${ambiente.id}`)}>Solicitar Reserva</Button>
+       </Box>
+    </Box>
   );
 }
 

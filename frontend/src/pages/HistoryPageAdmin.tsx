@@ -1,22 +1,26 @@
 // frontend/src/pages/HistoryPageAdmin.tsx
 
-import React, { useEffect, useState, useCallback } from 'react'; // <--- ADICIONADO useCallback
+import React, { useEffect, useState, useCallback } from 'react';
 import api from '../services/api';
+// Importe useAuth para verificar se é admin
 import { useAuth } from '../context/AuthContext';
+// Importe Link ou useNavigate se precisar de navegação
 import { Link, useNavigate } from 'react-router-dom';
+// Importe useSearchParams para filtros na URL (opcional)
 import { useSearchParams } from 'react-router-dom'; // Para sincronizar filtros com a URL
 
-// Importe Material UI
-import { TextField, Button, Select, MenuItem, FormControl, InputLabel, Typography, Box, CircularProgress } from '@mui/material';
+// Importar componentes de Material UI para tabelas, formulários e layout
+import { TextField, Button, Select, MenuItem, FormControl, InputLabel, Typography, Box, CircularProgress, Paper, TableContainer, Table, TableHead, TableRow, TableCell, TableBody } from '@mui/material';
+import theme from '../theme';
 // Importe Date/Time Picker (se usar para filtros de data)
 // import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 // import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 // import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 // Importe para lidar com datas
-import { formatISO } from 'date-fns'; // Para formatar datas para string ISO 8601
+import { format, formatISO, parseISO } from 'date-fns'; // Importado formatISO para datas
 
 
-// Reutilize interfaces (já definidas)
+// Reutilize interfaces para os dados de histórico (já definida em HistoryPage)
 interface HistoricoReservaData {
   id: number;
   ambiente_id: number;
@@ -55,22 +59,22 @@ interface HistoricoFilters {
 }
 
 
-function HistoryPageAdmin() {
+function HistoryPageAdmin() { // Renomeado para Administradores
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams(); // Para sincronizar filtros com a URL
 
 
   // State para armazenar a lista de registros de histórico
   const [historico, setHistorico] = useState<HistoricoReservaData[]>([]);
 
-  // State para armazenar a lista de usuários para popular filtro de usuário
+  // **NOVO ESTADO:** Para armazenar a lista de usuários para popular filtro de usuário
   const [users, setUsers] = useState<UsuarioData[]>([]);
-  // State para armazenar a lista de ambientes para popular filtro de ambiente
+  // **NOVO ESTADO:** Para armazenar a lista de ambientes para popular filtro de ambiente
   const [ambientes, setAmbientes] = useState<AmbienteData[]>([]);
 
 
-  // State para armazenar os valores dos filtros
+  // **NOVO ESTADO:** Para armazenar os valores dos filtros (já definida)
   // Inicializa a partir dos search params da URL ou valores padrão
   const [filters, setFilters] = useState<HistoricoFilters>(() => {
      const initialFilters: HistoricoFilters = {};
@@ -273,8 +277,8 @@ function HistoryPageAdmin() {
   }
 
 
-  // Exibir erro se houver (erro ao carregar lista/filtros)
-  if (error) { // Não precisa verificar !loading aqui, pois loading é usado para renderização de carregamento.
+  // Exibir erro se houver e não estiver carregando a lista
+  if (error && !loading) {
     return <Box sx={{ padding: 3 }}><Typography variant="h6" color="error">{error}</Typography></Box>;
   }
 
@@ -283,11 +287,11 @@ function HistoryPageAdmin() {
     <Box sx={{ padding: 3 }}>
       <Typography variant="h4" component="h1" gutterBottom>Histórico Geral de Reservas (Admin)</Typography>
 
-       {/* Filtros */}
+       {/* TODO: Adicionar filtros (dropdowns, date pickers) aqui */}
        <Box mb={3}>
            <Typography variant="h6" gutterBottom>Filtros</Typography>
             {/* O formulário submete com enter, mas a aplicação de filtros é baseada em useEffect mudando o estado 'filters' */}
-            <Box component="form" onSubmit={(e) => e.preventDefault()} display="flex" gap={2} flexWrap="wrap"> {/* Formulário sem submissão real */}
+            <Box component="form" onSubmit={(e) => e.preventDefault()} display="flex" gap={2} flexWrap="wrap">
 
                 {/* Filtro por Usuário */}
                 {users.length > 0 && (
@@ -297,7 +301,7 @@ function HistoryPageAdmin() {
                           labelId="filter-user-label"
                           id="usuario_id"
                           name="usuario_id"
-                          value={filters.usuario_id || ''}
+                          value={filters.usuario_id || ''} // Valor do estado, '' se null/undefined
                           label="Usuário"
                           onChange={handleFilterChange}
                           disabled={loading} // Desabilitar durante o carregamento da lista
@@ -318,7 +322,7 @@ function HistoryPageAdmin() {
                          labelId="filter-ambiente-label"
                          id="ambiente_id"
                          name="ambiente_id"
-                         value={filters.ambiente_id || ''}
+                         value={filters.ambiente_id || ''} // Valor do estado, '' se null/undefined
                          label="Ambiente"
                          onChange={handleFilterChange}
                          disabled={loading}
@@ -338,7 +342,7 @@ function HistoryPageAdmin() {
                        labelId="filter-status-label"
                        id="status"
                        name="status"
-                       value={filters.status || ''}
+                       value={filters.status || ''} // Valor do estado, '' se null/undefined
                        label="Status"
                        onChange={handleFilterChange}
                        disabled={loading}
@@ -374,22 +378,23 @@ function HistoryPageAdmin() {
                        sx={{ minWidth: 150 }}
                     />
 
-                   {/* TODO: Adicionar filtros de data (DatePicker) */}
-                   {/* Ex: <LocalizationProvider dateAdapter={AdapterDateFns}>
-                            <DateTimePicker
-                                label="Data Início ( >= )"
-                                value={filters.data_inicio_ge ? new Date(filters.data_inicio_ge) : null}
-                                onChange={(date) => handleFilterChange('data_inicio_ge', date ? formatISO(date) : null)}
-                                renderInput={(params) => <TextField {...params} />}
-                                disabled={loading}
-                            />
-                           </LocalizationProvider> */}
+                       {/* TODO: Adicionar filtros de data (DatePicker) */}
+                       {/* Ex: <LocalizationProvider dateAdapter={AdapterDateFns}>
+                                <DateTimePicker
+                                    label="Data Início ( >= )"
+                                    value={filters.data_inicio_ge ? new Date(filters.data_inicio_ge) : null}
+                                    onChange={(date) => handleFilterChange('data_inicio_ge', date ? formatISO(date) : null)}
+                                    renderInput={(params) => <TextField {...params} />}
+                                    disabled={loading}
+                                />
+                              </LocalizationProvider> */}
                     {/* TODO: Outros filtros de data (<= data fim, >= data fim) */}
+
 
                 </Box>
                  <Box mt={2}> {/* Box para o botão de reset */}
                     {/* Botão Limpar Filtros */}
-                    <Button variant="outlined" onClick={handleResetFilters} disabled={loading}>Limpar Filtros</Button>
+                     <Button variant="outlined" onClick={handleResetFilters} disabled={loading}>Limpar Filtros</Button>
                  </Box>
            </Box>
 
@@ -398,42 +403,52 @@ function HistoryPageAdmin() {
       {loading ? ( // Exibir spinner se a lista estiver carregando
            <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}><CircularProgress /></Box>
       ) : historico.length > 0 ? (
-           <table> {/* Usar uma tabela */}
-             <thead>
-               <tr>
-                 <th>ID Original</th>
-                 <th>Ambiente</th>
-                 <th>Usuário</th>
-                 <th>Período</th>
-                 <th>Motivo</th>
-                 <th>Status Final</th>
-                 <th>Solicitada Originalmente Em</th>
-               </tr>
-             </thead>
-             <tbody>
-               {historico.map(registro => (
-                 <tr key={registro.id}>
-                   <td>{registro.id}</td>
-                   <td>{registro.nome_amb}</td>
-                   <td>{registro.nome_usu}</td>
-                   <td>{formatDateTimeLocal(registro.data_inicio)} a {formatDateTimeLocal(registro.data_fim)}</td>
-                   <td>{registro.motivo}</td>
-                   <td>{registro.status.toUpperCase()}</td>
-                   <td>{formatDateTimeUtc(registro.data_criacao)}</td>
-                 </tr>
-               ))}
-             </tbody>
-           </table>
+           <TableContainer component={Paper} elevation={2}> {/* Tabela dentro de um Paper com sombra */}
+             <Table sx={{ minWidth: 650 }} aria-label="historico reservas admin table"> {/* minWidth para rolagem horizontal */}
+               <TableHead> {/* Cabeçalho */}
+                 <TableRow>
+                   <TableCell>ID Original</TableCell>
+                   <TableCell>Ambiente</TableCell>
+                   <TableCell>Usuário</TableCell>
+                   <TableCell>Período</TableCell>
+                   <TableCell>Motivo</TableCell>
+                   <TableCell>Status Final</TableCell>
+                   <TableCell>Solicitada Originalmente Em</TableCell>
+                 </TableRow>
+               </TableHead>
+               <TableBody> {/* Corpo da tabela */}
+                 {historico.map(registro => (
+                   <TableRow
+                     key={registro.id}
+                      // Adicionar efeito hover (opcional)
+                      sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': { backgroundColor: theme.palette.action.hover } }} // Remover borda na última linha, efeito hover
+                   >
+                     <TableCell component="th" scope="row">{registro.id}</TableCell>
+                     <TableCell>{registro.nome_amb}</TableCell>
+                     <TableCell>{registro.nome_usu}</TableCell>
+                     <TableCell>{formatDateTimeLocal(registro.data_inicio)} a {formatDateTimeLocal(registro.data_fim)}</TableCell> {/* Usar formatDateTime */}
+                     <TableCell>{registro.motivo}</TableCell>
+                     <TableCell>{registro.status.toUpperCase()}</TableCell>
+                     <TableCell>{formatDateTimeUtc(registro.data_criacao)}</TableCell> {/* Usar formatDateTime */}
+                   </TableRow>
+                 ))}
+               </TableBody>
+             </Table>
+           </TableContainer>
       ) : (
-        <p>Nenhum registro no histórico encontrado com os filtros atuais.</p>
+        <Typography variant="body1">Nenhum registro no histórico encontrado com os filtros atuais.</Typography>
       )}
 
       {/* TODO: Adicionar funcionalidade de paginação aqui */}
+       <Box mt={3}> {/* Espaço acima */}
+          {/* Links ou botões de paginação */}
+       </Box>
 
 
-       <p></p>
-       {/* Link para voltar */}
-        <p><Link to="/home">Voltar para o início</Link></p>
+       <Box mt={3}> {/* Espaço acima */}
+         {/* Link para voltar (já no Layout) */}
+         {/* <Link to="/home">Voltar para o início</Link> */}
+       </Box>
     </Box>
   );
 }

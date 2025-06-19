@@ -5,11 +5,8 @@ import api from '../services/api';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-import { format, formatISO, parseISO } from 'date-fns';
-
-
-// Importar componentes de UI (Material UI)
-import { TextField, Button, Select, MenuItem, FormControl, InputLabel, Checkbox, FormControlLabel, Typography, Box, CircularProgress } from '@mui/material';
+import { TextField, Button, Select, MenuItem, FormControl, InputLabel, Checkbox, FormControlLabel, Typography, Box, CircularProgress, Paper } from '@mui/material';
+import theme from '../theme';
 
 // Reutilizar interfaces (já definidas)
 // Interface AmbienteData (para popular o seletor de ambiente) - Defina-a aqui se não for globalmente
@@ -100,20 +97,21 @@ function RequestReservaPage() {
             setSuccessMessage(null); // Limpa mensagens anteriores
             setFormSubmissionError(null); // Limpa erros de submissão
 
-
-            // **Carregar Lista de Ambientes (sempre)**
+            // Carregar Lista de Ambientes (sempre)
             const ambientesResponse = await api.get('/ambientes/', { params: { ativo: true } });
             setAmbientes(ambientesResponse.data);
-            console.log('Lista de ambientes para solicitação obtida:', ambientesResponse.data);
 
-            // **Carregar Lista de Usuários (APENAS se admin)**
+            // Carregar Lista de Usuários (APENAS se admin)
             let fetchedUsers: UsuarioData[] = [];
             if (user?.tipo === 'admin') {
-                 console.log("Carregando lista de usuários para admin...");
-                 const usersResponse = await api.get('/usuarios/'); // GET /usuarios/ requer Admin
+                 const usersResponse = await api.get('/usuarios/');
                  fetchedUsers = usersResponse.data;
                  setUsers(fetchedUsers);
-                 console.log('Lista de usuários (Admin) obtida:', fetchedUsers);
+                 // **ADICIONADO:** Pré-selecionar usuário logado como default para admin na criação
+                 if (!reservaId && user?.id) { // Se em modo criação E usuário logado existir
+                      setSelectedUserId(user.id); // <--- Pré-seleciona o ID do usuário logado
+                      console.log(`Admin pré-selecionado usuário logado (${user.id}) na criação.`); // Debug
+                 }
             } else {
                 setUsers([]);
             }
@@ -134,20 +132,15 @@ function RequestReservaPage() {
                 });
                 console.log("Formulário pré-populado para edição:", reservaData);
 
-                // **Pré-selecionar o usuário associado à reserva (no modo edição)**
+                // Pré-selecionar o usuário associado à reserva (no modo edição)
                  if (user?.tipo === 'admin') {
-                     setSelectedUserId(reservaData.usuario.id);
-                 }
-
+                     setSelectedUserId(reservaData.usuario.id); // <--- Pré-seleciona o usuário da reserva existente
+                 } // Para usuário comum, o seletor não aparece.
 
             } else {
                 // Modo criação: Formulário vazio.
                 console.log("Modo criação: Formulário vazio.");
-                // Opcional: Pré-selecionar o primeiro usuário na lista para admin na criação?
-                 if (user?.tipo === 'admin' && fetchedUsers.length > 0) {
-                     setSelectedUserId(fetchedUsers[0].id);
-                     console.log(`Admin pré-selecionado usuário ${fetchedUsers[0].id} na criação.`); // Debug
-                 }
+                // A pré-seleção do usuário logado para admin na criação já foi feita acima.
             }
 
 
@@ -482,164 +475,193 @@ function RequestReservaPage() {
     }
   };
 
-  // Determinar o título da página com base no modo (criação vs edição)
-  const pageTitle = reservaId ? 'Editar Reserva' : 'Solicitar Nova Reserva';
-  const submitButtonText = isSubmittingForm || validatingAvailability ? 'Enviando...' : (reservaId ? 'Atualizar Reserva' : 'Solicitar Reserva'); // Texto dinâmico incluindo validação de disponibilidade
+  // Renderização condicional (carregamento inicial)
+  if (authLoading || loadingInitialData) {
+    return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+            <CircularProgress />
+            <Typography variant="h6" sx={{ marginLeft: 2 }}>Carregando formulário de reserva...</Typography>
+        </Box>
+    );
+  }
 
-  // Determinar se o formulário está desabilitado (carregando dados iniciais ou submetendo ou validando)
+  // Erro ao carregar dados iniciais
+   if (error) { // Erro geral de carregamento inicial (ex: 403, 500)
+       return <Box sx={{ padding: 3 }}><Typography variant="h6" color="error">{error}</Typography></Box>;
+   }
+
+
+  // Determinar o título da página com base no modo (criação vs edição) (existente)
+  const pageTitle = reservaId ? 'Editar Reserva' : 'Solicitar Nova Reserva';
+  const submitButtonText = isSubmittingForm || validatingAvailability ? 'Enviando...' : (reservaId ? 'Atualizar Reserva' : 'Solicitar Reserva');
   const isFormDisabled = loadingInitialData || isSubmittingForm || validatingAvailability;
 
 
   return (
-    <Box sx={{ padding: 3 }}>
-      <Typography variant="h4" component="h1" gutterBottom>{pageTitle}</Typography>
+    <Box sx={{ padding: 3, backgroundColor: theme.palette.background.default, minHeight: '100vh' }}>
 
+      {/* Removido: Título da página fora do Paper */}
+
+      {/* Exibe mensagens de sucesso (acima do formulário) */}
       {successMessage && <Typography color="green" gutterBottom>{successMessage}</Typography>}
-      {error && <Typography color="error" gutterBottom>{error}</Typography>} {/* Este erro é para carregamento inicial */}
+      {/* Exibe erro geral de carregamento inicial (acima do formulário) */}
+      {error && <Typography color="error" gutterBottom>{error}</Typography>}
 
 
-      {/* Formulário */}
-      <form onSubmit={handleSubmit}>
+      {/* Container para o Formulário (branco, com sombra) */}
+      {/* Usar Paper para um visual de card, centralizado horizontalmente */}
+      <Paper elevation={6} sx={{ padding: 4, maxWidth: 600, width: '100%', margin: '0 auto', borderRadius: 2 }}>
 
-        {/* **ADICIONADO:** Campo para selecionar usuário (APENAS se admin) */}
-        {user?.tipo === 'admin' && ( // Mostrar apenas se o usuário logado for admin
+          {/* **ADICIONADO:** Título do formulário DENTRO do Paper (como antes) */}
+           <Typography variant="h5" component="h2" gutterBottom align="center">
+              {pageTitle}
+           </Typography>
+
+
+          {/* Exibe erro de submissão geral (se houver) DENTRO do Paper/Formulário */}
+          {formSubmissionError && <Typography color="error" gutterBottom component="pre" sx={{ whiteSpace: 'pre-wrap' }}>{formSubmissionError}</Typography>}
+
+
+          {/* Formulário (modificado para usar Material UI) */}
+          <form onSubmit={handleSubmit} noValidate>
+
+            {/* Campo para selecionar usuário (APENAS se admin) */}
+            {/* Visível apenas se o usuário logado for admin */}
+            {user?.tipo === 'admin' && ( // Mostrar apenas se o usuário logado for admin
+                 <Box mb={2}>
+                    <FormControl fullWidth required={user?.tipo === 'admin' && !reservaId} disabled={isFormDisabled} error={!!formErrors.selectedUserId}> {/* Requerido se admin em criação */}
+                       <InputLabel id="user-select-label">Reservar Para Usuário:</InputLabel>
+                       <Select
+                         labelId="user-select-label"
+                         id="selectedUserId"
+                         name="selectedUserId"
+                         value={selectedUserId || ''} // Valor do select, usar '' se null
+                         label="Reservar Para Usuário"
+                         onChange={handleChange}
+                         required={user?.tipo === 'admin' && !reservaId} // Requerido se admin em criação
+                       >
+                         <MenuItem value=""><em>-- Selecione o Usuário --</em></MenuItem>
+                         {users.map(userOption => (
+                             <MenuItem key={userOption.id} value={userOption.id}>{userOption.nome} ({userOption.email})</MenuItem>
+                         ))}
+                       </Select>
+                       {formErrors.selectedUserId && <Typography variant="caption" color="error">{formErrors.selectedUserId}</Typography>}
+                    </FormControl>
+                </Box>
+            )}
+
+
+            {/* Campo Ambiente */}
+            <Box mb={2}>
+              <FormControl fullWidth required error={!!formErrors.ambiente_id} disabled={isFormDisabled}>
+                 <InputLabel id="ambiente-select-label">Ambiente:</InputLabel>
+                 {/* **CORRIGIDO:** Usar o Select do MUI corretamente com as opções de ambientes */}
+                 <Select
+                   labelId="ambiente-select-label"
+                   id="ambiente_id"
+                   name="ambiente_id"
+                   value={formData.ambiente_id} // Valor do select (number ou '')
+                   label="Ambiente"
+                   onChange={handleChange}
+                   required
+                   disabled={isFormDisabled}
+                 >
+                   <MenuItem value="">-- Selecione um Ambiente --</MenuItem>
+                   {ambientes.map(ambiente => (
+                       // O value da opção deve ser o ID numérico
+                       <MenuItem key={ambiente.id} value={ambiente.id}>{ambiente.nome} (Cap: {ambiente.capacidade})</MenuItem>
+                   ))}
+                 </Select>
+                  {/* Exibir erro de validação para ambiente_id */}
+                  {formErrors.ambiente_id && <Typography variant="caption" color="error">{formErrors.ambiente_id}</Typography>}
+              </FormControl>
+            </Box>
+
+            {/* Campos de Data/Hora */}
              <Box mb={2}>
-                <FormControl fullWidth required={user?.tipo === 'admin' && !reservaId} disabled={isFormDisabled} error={!!formErrors.selectedUserId}> {/* Requerido se admin em criação */}
-                   <InputLabel id="user-select-label">Reservar Para Usuário:</InputLabel>
-                   <Select
-                     labelId="user-select-label"
-                     id="selectedUserId"
-                     name="selectedUserId"
-                     value={selectedUserId || ''}
-                     label="Reservar Para Usuário"
-                     onChange={handleChange}
-                     required={user?.tipo === 'admin' && !reservaId} // Requerido se admin em criação
-                   >
-                     <MenuItem value=""><em>-- Selecione o Usuário --</em></MenuItem>
-                     {users.map(userOption => (
-                         <MenuItem key={userOption.id} value={userOption.id}>{userOption.nome} ({userOption.email})</MenuItem>
-                     ))}
-                   </Select>
-                   {formErrors.selectedUserId && <Typography variant="caption" color="error">{formErrors.selectedUserId}</Typography>} {/* Exibe erro de validação */}
-                </FormControl>
+                <TextField
+                   label="Data e Hora de Início"
+                   fullWidth
+                   id="data_inicio"
+                   name="data_inicio"
+                   type="datetime-local"
+                   value={formData.data_inicio}
+                   onChange={handleChange}
+                   required
+                   InputLabelProps={{ shrink: true }}
+                   disabled={isFormDisabled}
+                   error={!!formErrors.data_inicio}
+                   helperText={formErrors.data_inicio}
+                 />
              </Box>
-        )}
+
+             <Box mb={2}>
+                 <TextField
+                    label="Data e Hora de Fim"
+                    fullWidth
+                    id="data_fim"
+                    name="data_fim"
+                    type="datetime-local"
+                    value={formData.data_fim}
+                    onChange={handleChange}
+                    required
+                    InputLabelProps={{ shrink: true }}
+                    disabled={isFormDisabled}
+                    error={!!formErrors.data_fim}
+                    helperText={formErrors.data_fim}
+                  />
+             </Box>
 
 
-        {/* Campo Ambiente */}
-        <Box mb={2}>
-          <FormControl fullWidth required disabled={isFormDisabled} error={!!formErrors.ambiente_id}>
-             <InputLabel id="ambiente-select-label">Ambiente:</InputLabel>
-             <Select
-               labelId="ambiente-select-label"
-               id="ambiente_id"
-               name="ambiente_id"
-               value={formData.ambiente_id}
-               label="Ambiente"
-               onChange={handleChange}
-               required
-               disabled={isFormDisabled}
-             >
-               <MenuItem value="">-- Selecione um Ambiente --</MenuItem>
-               {ambientes.map(ambiente => (
-                 <MenuItem key={ambiente.id} value={ambiente.id}>{ambiente.nome} (Cap: {ambiente.capacidade})</MenuItem>
-               ))}
-             </Select>
-             {/* **ADICIONADO:** Exibe mensagem de erro de validação para ambiente_id */}
-              {formErrors.ambiente_id && <Typography variant="caption" color="error">{formErrors.ambiente_id}</Typography>}
-          </FormControl>
-        </Box>
-
-        {/* Campos de Data/Hora */}
-         <Box mb={2}>
-            <TextField
-               label="Data e Hora de Início"
-               fullWidth
-               id="data_inicio"
-               name="data_inicio"
-               type="datetime-local"
-               value={formData.data_inicio}
-               onChange={handleChange}
-               required
-               InputLabelProps={{ shrink: true }}
-               disabled={isFormDisabled}
-               error={!!formErrors.data_inicio} // Marca como erro se houver mensagem de erro para este campo
-               helperText={formErrors.data_inicio} // **ADICIONADO:** Exibe a mensagem de erro (incluindo erro de disponibilidade)
-             />
-         </Box>
-
-         <Box mb={2}>
-             <TextField
-                label="Data e Hora de Fim"
-                fullWidth
-                id="data_fim"
-                name="data_fim"
-                type="datetime-local"
-                value={formData.data_fim}
-                onChange={handleChange}
-                required
-                InputLabelProps={{ shrink: true }}
-                disabled={isFormDisabled}
-                error={!!formErrors.data_fim} // Marca como erro se houver mensagem de erro para este campo
-                helperText={formErrors.data_fim} // **ADICIONADO:** Exibe a mensagem de erro (incluindo erro de disponibilidade)
-              />
-         </Box>
+            {/* Campo Motivo */}
+             <Box mb={2}>
+                <TextField
+                   label="Motivo da Reserva"
+                   fullWidth
+                   id="motivo"
+                   name="motivo"
+                   value={formData.motivo}
+                   onChange={handleChange}
+                   required
+                   multiline
+                   rows={3}
+                   disabled={isFormDisabled}
+                   inputProps={{ maxLength: 100 }}
+                   error={!!formErrors.motivo}
+                   helperText={formErrors.motivo}
+                 />
+             </Box>
 
 
-        {/* Campo Motivo */}
-         <Box mb={2}>
-            <TextField
-               label="Motivo da Reserva"
-               fullWidth
-               id="motivo"
-               name="motivo"
-               value={formData.motivo}
-               onChange={handleChange}
-               required
-               multiline
-               rows={3}
-               disabled={isFormDisabled}
-               inputProps={{ maxLength: 100 }} // Correspondendo ao backend
-               error={!!formErrors.motivo}
-               helperText={formErrors.motivo}
-             />
-         </Box>
-
-        {/* Exibe erro de submissão geral aqui (se não for um erro associado a um campo específico) */}
-        {formSubmissionError && (
-     // Exibe a mensagem de erro de submissão.
-     // Usar um <pre> se a mensagem tiver quebras de linha (como com erros 400).
-     <Typography color="error" gutterBottom component="pre" sx={{ whiteSpace: 'pre-wrap' }}>{formSubmissionError}</Typography> // <--- Usar <pre> para quebras de linha e whiteSpace
- )}
+            {/* Exibe erro de submissão geral (se houver) DENTRO do Paper/Formulário */}
+            {formSubmissionError && <Typography color="error" gutterBottom component="pre" sx={{ whiteSpace: 'pre-wrap' }}>{formSubmissionError}</Typography>}
 
 
-        {/* Botões de Ação */}
-        <Box mt={3}>
-          <Button
-             type="submit"
-             variant="contained"
-             color="primary"
-             disabled={isFormDisabled} // Desabilita se carregando ou submetendo ou validando
-          >
-            {submitButtonText}
-          </Button>
-          {' '}
-          <Button
-             type="button"
-             variant="outlined"
-             onClick={() => navigate('/minhas-reservas')} // Botão Cancelar redireciona para minhas reservas
-             disabled={isSubmittingForm} // Desabilita apenas se submetendo
-          >
-            Cancelar
-          </Button>
-        </Box>
-      </form>
+            {/* Botões de Ação (Submit e Cancelar) */}
+            <Box mt={3} display="flex" justifyContent="center" gap={2}> {/* **ADICIONADO:** Flexbox para centralizar botões e adicionar gap */}
+              <Button
+                 type="submit"
+                 variant="contained"
+                 color="primary"
+                 disabled={isFormDisabled}
+              >
+                {submitButtonText}
+              </Button>
+              <Button
+                 type="button"
+                 variant="outlined"
+                 onClick={() => navigate('/minhas-reservas')}
+                 disabled={isSubmittingForm}
+              >
+                Cancelar
+              </Button>
+            </Box>
+          </form>
 
+      </Paper> {/* Fim do Paper */}
 
-      {/* Link para voltar (se o formulário for modal, este link não seria necessário aqui) */}
-       <p>
-         {/* <Link to="/minhas-reservas">Ver minhas reservas</Link> | <Link to="/home">Voltar para o início</Link> */}
-       </p>
+      {/* Link para voltar (removido ou não necessário se o botão Cancelar redireciona) */}
+       {/* <p> ... </p> */}
 
     </Box>
   );

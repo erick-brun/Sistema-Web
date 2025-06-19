@@ -1,84 +1,78 @@
 // frontend/src/components/Layout.tsx
 
 import React, { ReactNode } from 'react';
-// Importe Link para links de navegação
 import { Link } from 'react-router-dom';
-// Importe useAuth para obter o usuário logado e a função logout
 import { useAuth } from '../context/AuthContext';
 
-// Opcional: Importar componentes de UI para o layout (ex: AppBar, Toolbar, Button, Box, Typography)
+// Importar componentes de UI do Material UI
 import { AppBar, Toolbar, Button, Box, Typography } from '@mui/material';
 
+// **ADICIONADO:** Importar a Logo do Senai
+// Use a importação especial do Vite para assets da pasta public/
+// O nome do arquivo deve ser o nome real do seu arquivo de logo em frontend/public/
+// Ex: '/logo_senai.png' ou '/logo_senai.svg'
+const senaiLogo = '/logo_senai.png'; // <--- SUBSTITUIR pelo nome do seu arquivo em public/
 
-// Interface para as props do componente Layout
+
+// Interface para as props do componente Layout (existente)
 interface LayoutProps {
-  children: ReactNode; // O conteúdo da página a ser envolvido
+  children: ReactNode;
 }
 
 // Componente de Layout com Barra de Navegação
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  // Obtenha o usuário logado e a função logout do contexto de autenticação
   const { user, logout, isAuthenticated, loading: authLoading } = useAuth();
 
-  // Lógica de logout (chama a função do contexto)
   const handleLogout = () => {
     logout();
-    // O redirecionamento após logout é tratado pelo AuthContext/ProtectedRoute
   };
 
-  // Renderizar null ou um spinner se o contexto de autenticação ainda estiver carregando
   if (authLoading) {
-    return null; // Ou um spinner global se preferir que a página inteira mostre loading
+    return null; // Ou um spinner global
   }
 
 
   return (
-    <Box sx={{ flexGrow: 1 }}> {/* Box para o container principal, usando flexGrow se usar Material UI */}
-      {/* AppBar (Barra Superior) */}
-      <AppBar position="static"> {/* position="static" ou "fixed" se quiser fixo */}
-        <Toolbar> {/* Container dentro do AppBar */}
-          {/* Título/Nome da Aplicação */}
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Sistema de Reservas
-          </Typography>
+    <Box sx={{ flexGrow: 1 }}>
+      <AppBar position="static" elevation={0} sx={{ width: '100%', borderBottom: 'none' }}>
+        <Toolbar> {/* Padding definido no tema, alignItems: 'center' no tema */}
+          {/* Logo do Senai - **VERIFICAR:** Box com alignItems: 'center' */}
+          <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}> {/* alignItems: 'center' aqui */}
+              <img src={senaiLogo} alt="Logo Senai" style={{ height: 50 }} /> {/* **MODIFICADO:** Ajustar altura da logo */}
+          </Box>
 
-          {/* Links de Navegação */}
-          <Box sx={{ display: { xs: 'none', md: 'flex' } }}> {/* Exemplo: Ocultar em telas pequenas, mostrar em telas médias/grandes */}
-             {isAuthenticated && ( // Mostrar links APENAS se autenticado
+          {/* Links de Navegação - Alinhados à Direita e Centralizados Verticalmente */}
+          {/* **VERIFICAR:** Este Box DEVE estar alinhado verticalmente */}
+          <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 2 }}>
+             {isAuthenticated && (
                 <>
-                   {/* Link para a página inicial */}
-                   <Button color="inherit" component={Link} to="/home">Início</Button> {/* Usar Button e Link juntos */}
+                   {/* Botões usando Button component={Link} */}
+                   {/* Estilos de fonte, padding, hover definidos no tema para MuiButton */}
+                   <Button color="inherit" component={Link} to="/home">Início</Button> {/* color="inherit" pega a cor contrastante da AppBar (cinza escuro) */}
                    <Button color="inherit" component={Link} to="/ambientes">Ambientes</Button>
                    <Button color="inherit" component={Link} to="/minhas-reservas">Minhas Reservas</Button>
-                   <Button color="inherit" component={Link} to="/calendario">Calendário</Button>
-                   <Button color="inherit" component={Link} to="/solicitar-reserva">Solicitar Reserva</Button>
-                   <Button color="inherit" component={Link} to="/historico-reservas">Meu Histórico</Button> {/* Link para histórico pessoal */}
+                   {/* <Button color="inherit" component={Link} to="/calendario">Calendário</Button> */}
+                   <Button color="inherit" component={Link} to="/solicitar-reserva">Solicitar</Button>
+                   <Button color="inherit" component={Link} to="/historico-reservas">Meu Histórico</Button>
 
                    {/* Links de Administração (visíveis APENAS se o usuário for Admin) */}
                    {user?.tipo === 'admin' && (
                        <>
-                           <Button color="inherit" component={Link} to="/gerenciar-usuarios">Gerenciar Usuários</Button>
-                           <Button color="inherit" component={Link} to="/gerenciar-ambientes">Gerenciar Ambientes</Button>
-                           <Button color="inherit" component={Link} to="/gerenciar-reservas">Gerenciar Reservas</Button> {/* Link para gerenciar todas */}
-                           <Button color="inherit" component={Link} to="/gerenciar-historico-reservas">Histórico Geral</Button> {/* Link para histórico geral */}
+                           <Button color="inherit" component={Link} to="/gerenciar-usuarios">Ger. Usuários</Button>
+                           <Button color="inherit" component={Link} to="/gerenciar-ambientes">Ger. Ambientes</Button>
+                           <Button color="inherit" component={Link} to="/gerenciar-reservas">Ger. Reservas</Button>
+                           <Button color="inherit" component={Link} to="/gerenciar-historico-reservas">Hist. Geral</Button>
                        </>
                    )}
 
-                   {/* Informações do Usuário Logado (Opcional) */}
-                   {/* <Typography variant="body1" color="inherit" sx={{ ml: 2 }}>Olá, {user.nome}!</Typography> */}
                    {/* Botão de Logout */}
                    <Button color="inherit" onClick={handleLogout}>Sair</Button>
                 </>
              )}
-             {/* Opcional: Seções diferentes para usuários não autenticados (ex: Link para Login/Cadastro) */}
-             {!isAuthenticated && (
-                  <>
-                      {/* Link para Login (se a rota '/' redireciona) */}
-                      {/* <Button color="inherit" component={Link} to="/login">Login</Button> */}
-                      {/* Link para Cadastro */}
-                       <Button color="inherit" component={Link} to="/cadastro-usuario">Cadastro</Button>
-                  </>
-             )}
+             {/* ... links para não autenticados ... */}
+              {!isAuthenticated && (
+                  <Button color="inherit" component={Link} to="/cadastro-usuario">Cadastro</Button>
+              )}
           </Box>
 
           {/* TODO: Menu responsivo para telas pequenas */}
@@ -87,7 +81,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </AppBar>
 
       {/* Conteúdo da Página */}
-      <Box component="main" sx={{ p: 3 }}> {/* Usar Box com padding para o conteúdo principal */}
+      {/* Box component="main" sx={{ p: 3 }}> // Padding nas páginas (definido no tema Typography.styleOverrides também pode ser) */}
+      {/* O padding no Box principal da página pode ser ajustado aqui ou nas páginas individuais */}
+       <Box component="main"> {/* Removido padding padrão aqui, pode ser adicionado nas páginas */}
         {children} {/* Renderiza o conteúdo da página real aqui */}
       </Box>
     </Box>

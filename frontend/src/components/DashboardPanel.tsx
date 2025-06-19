@@ -2,13 +2,11 @@
 
 import React, { useState, useRef } from 'react';
 // Importe Material UI para layout e estilo
-import { Box, Typography, Paper, Button, CircularProgress } from '@mui/material';
-import { format, formatISO, parseISO } from 'date-fns';
+import { Box, Typography, Paper, Button, CircularProgress, useTheme } from '@mui/material';
 // Importe o ícone de tela cheia (opcional)
 // import FullscreenIcon from '@mui/icons-material/Fullscreen';
 // Importe ícone de sair da tela cheia (opcional)
 // import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
-
 
 // Reutilize a interface para os dados de reserva do dashboard
 interface ReservaDashboardData {
@@ -78,7 +76,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({ reservas, loading, erro
 
   const panelRef = useRef<HTMLDivElement>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
-
+  const theme = useTheme();
 
   // Lógica para entrar em tela cheia
   const handleFullScreen = () => {
@@ -153,8 +151,28 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({ reservas, loading, erro
 
 
   return (
-    // Container principal do painel
-    <Box ref={panelRef} sx={{ padding: 2, border: '1px solid #ccc', borderRadius: 2, bgcolor: 'background.paper', /* Adicionar estilos para tela cheia */ }}>
+    // Container principal do painel (será referenciado para tela cheia)
+    // **MODIFICADO:** Adicionar fundo cinza (usando a cor do tema)
+    <Box
+        ref={panelRef}
+        sx={{
+            padding: 2,
+            border: '1px solid #ccc', // Borda sutil
+            borderRadius: 2,
+            // **MODIFICADO:** Usar a cor customizada para o fundo do painel (cinza claro)
+            backgroundColor: theme.palette.background.default, // <--- USAR a cor cinza claro do tema
+            // Adicionar estilos para MODO TELA CHEIA (bordas, padding, etc. quando estiver em tela cheia)
+            // Aplicar estilos específicos quando isFullScreen for true
+            ...(isFullScreen && { // Exemplo: Aplicar estilos adicionais quando isFullScreen é true
+                 position: 'fixed', // Fixar na tela
+                 top: 0, left: 0, right: 0, bottom: 0, // Ocupar toda a tela
+                 zIndex: 9999, // Garantir que fica por cima de tudo
+                 overflowY: 'auto', // Adicionar scroll se o conteúdo for maior que a tela
+                 borderRadius: 0, // Remover cantos arredondados em tela cheia
+                 // Pode precisar ajustar padding, borda, etc. em tela cheia.
+            })
+        }}
+    >
 
       {/* Título do Painel (Dia e Turno) - Usando a função formatDate corrigida */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
@@ -185,7 +203,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({ reservas, loading, erro
                   {/* Iterar sobre as reservas dentro deste grupo */}
                   {reservaList.map((reserva, index) => (
                       // **MODIFICADO:** Caixa individual de reserva (Paper)
-                      <Paper key={index} elevation={2} sx={{ padding: 1.5, minWidth: 180, maxWidth: 250, flexGrow: 1 }}> {/* Ajustar min/max width e flexGrow */}
+                      <Paper key={index} elevation={2} sx={{ padding: 1.5, minWidth: 180, maxWidth: 250, flexGrow: 1 }}>
                           {/* **MODIFICADO:** Conteúdo da Caixinha */}
                            {/* Nome do Ambiente */}
                           <Typography variant="body1" fontWeight="bold" gutterBottom>{reserva.ambiente_nome}</Typography> {/* Adicionado gutterBottom para espaço abaixo */}

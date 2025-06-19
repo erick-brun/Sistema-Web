@@ -3,23 +3,28 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
-// Importe o componente App e o Provedor de Autenticação
-import App from './App'; // Importa o novo App.tsx
-import { AuthProvider } from './context/AuthContext'; // Importa o Provedor
+// Importe o ThemeProvider do Material UI
+import { ThemeProvider } from '@mui/material/styles'; // <--- ADICIONADO
+// Importe seu tema customizado
+import theme from './theme'; // <--- ADICIONADO: Importa seu tema customizado
 
-// Opcional: Importe seus estilos globais
-// import './index.css';
+// Importe o Provedor de Autenticação
+import { AuthProvider } from './context/AuthContext';
+// Importe o componente App
+import App from './App';
 
-// Opcional: Se estiver usando Material UI e precisar de configurações no root
-// import { ThemeProvider } from '@mui/material/styles';
-// import theme from './theme'; // Defina seu tema
+// Opcional: Importe seus estilos globais (index.css)
+import './index.css';
+
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {/* Envolva o componente App com o Provedor de Autenticação */}
-    <AuthProvider>
-       {/* Opcional: Envolver com ThemeProvider ou outros provedores aqui */}
-      <App /> {/* Renderiza o componente App */}
-    </AuthProvider>
+    {/* **ADICIONADO:** Envolver com ThemeProvider para aplicar o tema MU */}
+    <ThemeProvider theme={theme}> {/* <--- ADICIONADO */}
+      {/* Provedor de autenticação envolve o App */}
+      <AuthProvider>
+         <App /> {/* Renderiza o componente App (que contém o roteamento) */}
+      </AuthProvider>
+    </ThemeProvider>
   </React.StrictMode>
 );

@@ -1,55 +1,59 @@
 // frontend/src/pages/CadastroUsuario.tsx
 
 import React, { useState } from 'react';
-// Importe a instância axios configurada
 import api from '../services/api';
-// Importe useNavigate ou Link para navegação após o cadastro
-import { useNavigate, Link } from 'react-router-dom'; // Use Link para o link de volta ao login
+import { useNavigate, Link } from 'react-router-dom';
+// Importe useAuth se o cadastro for restrito a admin (geralmente cadastro é público)
+// import { useAuth } from '../context/AuthContext';
 
-// Opcional: Se estiver usando Material UI, importe componentes aqui
-// import { TextField, Button, Typography, Container, Box } from '@mui/material';
+// Importar componentes de Material UI
+import { TextField, Button, Typography, Container, Box, Paper, CircularProgress } from '@mui/material';
+import theme from '../theme';
 
 
-function CadastroUsuarioPage() { // Renomeado para maior clareza
-  // Use state para gerenciar os valores dos inputs
+function CadastroUsuarioPage() { // Renomeado
   const [nome, setNome] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-  // Use state para gerenciar mensagens de erro e sucesso
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null); // Mensagem de sucesso
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Hook para navegação programática (opcional, pode redirecionar para login após sucesso)
   const navigate = useNavigate();
+  // Opcional: Obter estado de autenticação/loading se o cadastro precisar verificar algo
+  // const { isAuthenticated, loading: authLoading } = useAuth();
 
 
-  // Função chamada ao enviar o formulário de cadastro
+  // **ADICIONADO:** Estado para desabilitar formulário durante a submissão
+   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+
+  // Função chamada ao enviar o formulário de cadastro (modificada para usar Material UI e estado de submissão)
   const handleCadastro = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); // Previne o comportamento padrão de recarregar a página
+    e.preventDefault();
 
-    setError(null); // Limpa mensagens de erro anteriores
-    setSuccessMessage(null); // Limpa mensagens de sucesso anteriores
+    setError(null);
+    setSuccessMessage(null);
+    setIsSubmitting(true); // Inicia submissão
 
     // Validação básica no frontend (opcional, mas boa prática)
     if (!nome || !email || !password) {
       setError('Por favor, preencha todos os campos.');
+      setIsSubmitting(false);
       return;
     }
     // Você pode adicionar validação básica de formato de email ou comprimento de senha aqui também.
 
+
     try {
-      // Envia a requisição POST para o endpoint de cadastro.
-      // O backend espera um corpo JSON com nome, email e senha (schema UsuarioCreate).
       const response = await api.post('/usuarios/', {
         nome,
         email,
-        senha: password, // Nome do campo esperado pelo backend (senha em texto puro no schema de entrada)
+        senha: password,
       });
 
       // Se a requisição for bem-sucedida (status 201 Created)
       if (response.status === 201) {
         console.log('Cadastro bem-sucedido:', response.data);
-        // Exibe uma mensagem de sucesso
         setSuccessMessage('Usuário cadastrado com sucesso! Agora você pode fazer login.');
         // Opcional: Limpar o formulário após sucesso
         setNome('');
@@ -61,69 +65,112 @@ function CadastroUsuarioPage() { // Renomeado para maior clareza
         // }, 3000); // Redireciona após 3 segundos
 
       } else {
-         // Teoricamente, o axios lança erro para status != 2xx, mas uma checagem extra é segura
+         // Teoricamente, o axios lança erro para status != 2xx
          setError('Erro inesperado no cadastro.');
       }
 
     } catch (err: any) {
-      // Lida com erros na requisição API (ex: 400 Bad Request - e-mail já em uso, 500 Internal Server Error)
       console.error('Cadastro falhou:', err);
 
-      // Extrai e exibe uma mensagem de erro amigável.
       const errorMessage = err.response?.data?.detail || 'Erro desconhecido ao cadastrar. Tente novamente.';
-      setError(errorMessage); // Define a mensagem de erro para ser exibida.
+      setError(errorMessage);
+    } finally {
+        setIsSubmitting(false); // Finaliza submissão
     }
   };
 
 
+  // Opcional: Renderização condicional enquanto o contexto de autenticação está carregando (se usar useAuth)
+  // if (authLoading) { ... }
+
+
   return (
-    <div>
-      <h2>Página de Cadastro de Usuário</h2>
-      {/* Formulário de cadastro */}
-      <form onSubmit={handleCadastro}>
-        <div>
-          <label htmlFor="nome">Nome Completo:</label>
-          <input
-            type="text"
-            id="nome"
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="email">Email:</label>
-          <input
-            type="email"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="password">Senha:</label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        {/* Botão para enviar o formulário */}
-        <button type="submit">Cadastrar</button>
+    // **ADICIONADO:** Container principal da página Cadastro (cinza claro)
+    // Usar flexbox para centralizar o conteúdo
+    <Box
+        sx={{
+            display: 'flex',
+            justifyContent: 'center', // Centralizar horizontalmente
+            alignItems: 'center', // Centralizar verticalmente
+            minHeight: '100vh', // Ocupar pelo menos 100% da altura da viewport
+            padding: 3, // Padding geral
+            backgroundColor: theme.palette.background.default, // <--- Fundo cinza claro do tema
+        }}
+    >
+      {/* **ADICIONADO:** Container para o Formulário (branco, com sombra) */}
+      {/* Usar Paper para um visual de card */}
+      <Paper elevation={6} sx={{ padding: 4, minWidth: 300, maxWidth: 400, width: '100%', borderRadius: 2 }}> {/* Padding interno, largura, cantos arredondados */}
 
-        {/* Exibe mensagens de erro ou sucesso */}
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        {successMessage && <p style={{ color: 'green' }}>{successMessage}</p>}
-      </form>
+          <Typography variant="h5" component="h1" gutterBottom align="center">
+             Cadastro de Usuário
+          </Typography>
 
-      {/* Link para a página de login */}
-      <p>
-        Já tem conta? <Link to="/login">Faça login aqui</Link> {/* Use o componente Link do react-router-dom */}
-      </p>
-    </div>
+          {/* Exibe mensagens de erro ou sucesso (acima do formulário) */}
+          {error && <Typography color="error" align="center" gutterBottom>{error}</Typography>} {/* Usar Typography para erro */}
+          {successMessage && <Typography color="success" align="center" gutterBottom>{successMessage}</Typography>} {/* Usar Typography para sucesso */}
+
+          {/* Formulário de cadastro (modificado para usar Material UI) */}
+          <form onSubmit={handleCadastro} noValidate> {/* noValidate desabilita validação HTML5 padrão */}
+             {/* Campo Nome */}
+              <TextField
+                 label="Nome Completo"
+                 type="text"
+                 fullWidth // Ocupa a largura total
+                 margin="normal" // Adiciona margem padrão (top/bottom)
+                 value={nome}
+                 onChange={(e) => setNome(e.target.value)}
+                 required // Torna o campo obrigatório
+                 disabled={isSubmitting} // Desabilita durante a submissão
+                />
+
+             {/* Campo Email */}
+              <TextField
+                 label="Email"
+                 type="email"
+                 fullWidth
+                 margin="normal"
+                 value={email}
+                 onChange={(e) => setEmail(e.target.value)}
+                 required
+                 disabled={isSubmitting}
+                />
+
+             {/* Campo Senha */}
+              <TextField
+                 label="Senha"
+                 type="password"
+                 fullWidth
+                 margin="normal"
+                 value={password}
+                 onChange={(e) => setPassword(e.target.value)}
+                 required
+                 disabled={isSubmitting}
+                />
+
+             {/* Botão para enviar o formulário */}
+             <Button
+                 type="submit"
+                 variant="contained" // Estilo preenchido
+                 color="primary" // Cor primária (azul do tema)
+                 fullWidth // Ocupa a largura total
+                 size="large" // Botão maior
+                 disabled={isSubmitting} // Desabilita durante a submissão
+                 sx={{ mt: 3 }} // Adiciona margem superior (mt = margin-top)
+             >
+                {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Cadastrar'} {/* Texto ou spinner */}
+             </Button>
+
+          </form>
+
+          {/* Link para a página de login */}
+          <Box mt={2} textAlign="center"> {/* mt = margin-top, centraliza texto */}
+              <Typography variant="body2">
+                Já tem conta? <Link to="/login">Faça login aqui</Link> {/* Usar Link de react-router-dom */}
+              </Typography>
+          </Box>
+
+      </Paper> {/* Fim do Paper */}
+    </Box> // Fim do Box container principal
   );
 }
 
