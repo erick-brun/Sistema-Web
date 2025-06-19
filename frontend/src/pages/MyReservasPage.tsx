@@ -168,19 +168,33 @@ function MyReservasPage() {
   };
 
 
-  // Função auxiliar para formatar datas para exibição (interpretar como UTC e formatar local)
-const formatDateTime = (dateTimeString: string) => {
-     try {
-        // **CORREÇÃO:** Interpretar a string como sendo em UTC ('Z') e criar um objeto Date.
-        // O construtor new Date() lida com 'Z' convertendo para o ponto no tempo UTC.
-        // toLocaleString() então converte esse ponto no tempo para o fuso horário LOCAL para exibição.
-        const date = new Date(dateTimeString + 'Z'); // <--- Adicionar 'Z' se a string não tiver
-         return date.toLocaleString(); // Formato amigável no fuso horário LOCAL
-     } catch (e) {
-         console.error("Erro ao formatar data/hora:", dateTimeString, e);
-         return "Data/Hora inválida";
-     }
- };
+  // **NOVA LÓGICA:** Função auxiliar para formatar data/hora assumindo fuso horário LOCAL (para inicio/fim)
+  const formatDateTimeLocal = (dateTimeString: string) => {
+       try {
+           // Assumindo que a string já representa o horário no fuso horário LOCAL (UTC-3)
+           // new Date(string sem info de fuso) é interpretado no fuso horário LOCAL.
+           const date = new Date(dateTimeString);
+           // toLocaleString formata essa data local para exibição local.
+           return date.toLocaleString(); // Formato local completo (data e hora)
+       } catch (e) {
+            console.error("Erro ao formatar data/hora local:", dateTimeString, e);
+            return "Data/Hora inválida";
+       }
+   };
+
+   // **NOVA LÓGICA:** Função auxiliar para formatar data/hora assumindo UTC (para criação)
+   const formatDateTimeUtc = (dateTimeString: string) => {
+        try {
+            // Assumindo que a string representa horário em UTC e não tem info de fuso ('Z').
+            // Adicionar 'Z' força new Date() a interpretar como UTC antes de converter para local.
+            const date = new Date(dateTimeString + 'Z'); // <--- Adiciona 'Z'
+             // toLocaleString então converte essa data (agora interpretada como UTC) para o fuso horário LOCAL para exibição.
+             return date.toLocaleString(); // Formato amigável no fuso horário LOCAL
+         } catch (e) {
+             console.error("Erro ao formatar data/hora UTC:", dateTimeString, e);
+             return "Data/Hora inválida";
+         }
+    };
 
 
   // Renderização condicional (loading do AuthContext OU loading das Reservas)
@@ -207,9 +221,9 @@ const formatDateTime = (dateTimeString: string) => {
               {/* Exibir detalhes da reserva (como antes) */}
               <strong>Reserva ID: {reserva.id}</strong> (Status: {reserva.status.toUpperCase()})
               <p>Ambiente: {reserva.ambiente.nome}</p>
-              <p>Período: {formatDateTime(reserva.data_inicio)} a {formatDateTime(reserva.data_fim)}</p>
+              <p>Período: {formatDateTimeLocal(reserva.data_inicio)} a {formatDateTimeLocal(reserva.data_fim)}</p>
               <p>Motivo: {reserva.motivo}</p>
-              <p>Solicitada em: {formatDateTime(reserva.data_criacao)}</p>
+              <p>Solicitada em: {formatDateTimeUtc(reserva.data_criacao)}</p>
               <p>Solicitado por: {reserva.usuario.nome}</p> {/* Acessando dado aninhado */}
 
               {/* TODO: Adicionar botões para Editar/Cancelar (condicionalmente) */}

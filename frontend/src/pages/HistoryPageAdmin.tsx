@@ -228,11 +228,33 @@ function HistoryPageAdmin() {
   };
 
 
-  // Função auxiliar para formatar datas (reutilizada)
-  const formatDateTime = (dateTimeString: string) => {
-      const date = new Date(dateTimeString);
-      return date.toLocaleString();
-  };
+  // **NOVA LÓGICA:** Função auxiliar para formatar data/hora assumindo fuso horário LOCAL (para inicio/fim)
+  const formatDateTimeLocal = (dateTimeString: string) => {
+       try {
+           // Assumindo que a string já representa o horário no fuso horário LOCAL (UTC-3)
+           // new Date(string sem info de fuso) é interpretado no fuso horário LOCAL.
+           const date = new Date(dateTimeString);
+           // toLocaleString formata essa data local para exibição local.
+           return date.toLocaleString(); // Formato local completo (data e hora)
+       } catch (e) {
+            console.error("Erro ao formatar data/hora local:", dateTimeString, e);
+            return "Data/Hora inválida";
+       }
+   };
+
+   // **NOVA LÓGICA:** Função auxiliar para formatar data/hora assumindo UTC (para criação)
+   const formatDateTimeUtc = (dateTimeString: string) => {
+        try {
+            // Assumindo que a string representa horário em UTC e não tem info de fuso ('Z').
+            // Adicionar 'Z' força new Date() a interpretar como UTC antes de converter para local.
+            const date = new Date(dateTimeString + 'Z'); // <--- Adiciona 'Z'
+             // toLocaleString então converte essa data (agora interpretada como UTC) para o fuso horário LOCAL para exibição.
+             return date.toLocaleString(); // Formato amigável no fuso horário LOCAL
+         } catch (e) {
+             console.error("Erro ao formatar data/hora UTC:", dateTimeString, e);
+             return "Data/Hora inválida";
+         }
+    };
 
 
   // Renderização condicional (estado de carregamento inicial do AuthContext)
@@ -394,10 +416,10 @@ function HistoryPageAdmin() {
                    <td>{registro.id}</td>
                    <td>{registro.nome_amb}</td>
                    <td>{registro.nome_usu}</td>
-                   <td>{formatDateTime(registro.data_inicio)} a {formatDateTime(registro.data_fim)}</td>
+                   <td>{formatDateTimeLocal(registro.data_inicio)} a {formatDateTimeLocal(registro.data_fim)}</td>
                    <td>{registro.motivo}</td>
                    <td>{registro.status.toUpperCase()}</td>
-                   <td>{formatDateTime(registro.data_criacao)}</td>
+                   <td>{formatDateTimeUtc(registro.data_criacao)}</td>
                  </tr>
                ))}
              </tbody>

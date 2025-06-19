@@ -173,55 +173,77 @@ function ManageReservasPage() { // Renomeado
   // Função para lidar com a ação de Deletar Reserva (por Admin)
   // Nota: Removemos o endpoint DELETE direto anteriormente. Se você o readicionou, use esta chamada.
   // Se você decidiu NÃO ter um endpoint DELETE direto (apenas cancelamento/finalização), pule esta função.
-  const handleDelete = async (reservaId: number) => {
-      // TODO: Adicionar confirmação
-      if (!window.confirm(`Tem certeza que deseja deletar a reserva ${reservaId} permanentemente?`)) {
-          return;
-      }
+  // const handleDelete = async (reservaId: number) => {
+  //     // TODO: Adicionar confirmação
+  //     if (!window.confirm(`Tem certeza que deseja deletar a reserva ${reservaId} permanentemente?`)) {
+  //         return;
+  //     }
 
-      setModifyingReservaId(reservaId); // Desabilita botões
+  //     setModifyingReservaId(reservaId); // Desabilita botões
 
-      try {
-         // **Se você readicionou o endpoint DELETE no backend:**
-         // Chama o endpoint DELETE /reservas/{reserva_id} (requer Admin)
-         // const response = await api.delete(`/reservas/${reservaId}`);
-         // console.log(`Reserva ${reservaId} deletada permanentemente:`, response.data);
+  //     try {
+  //        // **Se você readicionou o endpoint DELETE no backend:**
+  //        // Chama o endpoint DELETE /reservas/{reserva_id} (requer Admin)
+  //        // const response = await api.delete(`/reservas/${reservaId}`);
+  //        // console.log(`Reserva ${reservaId} deletada permanentemente:`, response.data);
 
-         // TODO: Lógica de verificação de reservas associadas se o DELETE no backend NÃO mover para histórico e deixar a FK
-         // (Você implementou isso para Usuários e Ambientes). Mas para Reservas, a restrição FK é para Usuário e Ambiente,
-         // não para outras Reservas. O problema aqui seria se houver registros no HISTÓRICO com FK de volta para a Reserva original (o que não é o caso no seu modelo).
-         // O backend RESTRICT no DELETE de Reserva seria se outras tabelas referenciassem Reserva, o que não parece ser o caso.
+  //        // TODO: Lógica de verificação de reservas associadas se o DELETE no backend NÃO mover para histórico e deixar a FK
+  //        // (Você implementou isso para Usuários e Ambientes). Mas para Reservas, a restrição FK é para Usuário e Ambiente,
+  //        // não para outras Reservas. O problema aqui seria se houver registros no HISTÓRICO com FK de volta para a Reserva original (o que não é o caso no seu modelo).
+  //        // O backend RESTRICT no DELETE de Reserva seria se outras tabelas referenciassem Reserva, o que não parece ser o caso.
 
-         // **Se você não readicionou o endpoint DELETE no backend, esta função NÃO SERÁ USADA.**
-         // A "deleção" no seu fluxo é via status CANCELADA/FINALIZADA que move para histórico e deleta da tabela principal.
+  //        // **Se você não readicionou o endpoint DELETE no backend, esta função NÃO SERÁ USADA.**
+  //        // A "deleção" no seu fluxo é via status CANCELADA/FINALIZADA que move para histórico e deleta da tabela principal.
 
-         // Se você readicionou DELETE e ele apenas deleta da tabela principal:
-         // Remove a reserva deletada da lista local
-         // setReservas(reservas.filter(reserva => reserva.id !== reservaId));
-         // setSuccessMessage(`Reserva ${reservaId} deletada permanentemente!`);
+  //        // Se você readicionou DELETE e ele apenas deleta da tabela principal:
+  //        // Remove a reserva deletada da lista local
+  //        // setReservas(reservas.filter(reserva => reserva.id !== reservaId));
+  //        // setSuccessMessage(`Reserva ${reservaId} deletada permanentemente!`);
 
-         // **Alternativa:** Se o "Deletar" for apenas um alias para "Cancelar" para Admins:
-         // Chamar handleUpdateStatus(reservaId, 'cancelada');
+  //        // **Alternativa:** Se o "Deletar" for apenas um alias para "Cancelar" para Admins:
+  //        // Chamar handleUpdateStatus(reservaId, 'cancelada');
 
-         console.log(`Funcionalidade Deletar Reserva ${reservaId} não implementada ou removida.`); // Placeholder se o DELETE não existe.
-         setModifyingReservaId(null); // Finaliza modificação
-         // TODO: Lidar com este cenário na UI - talvez ocultar o botão se o DELETE não for suportado.
+  //        console.log(`Funcionalidade Deletar Reserva ${reservaId} não implementada ou removida.`); // Placeholder se o DELETE não existe.
+  //        setModifyingReservaId(null); // Finaliza modificação
+  //        // TODO: Lidar com este cenário na UI - talvez ocultar o botão se o DELETE não for suportado.
 
-      } catch (err: any) {
-         console.error(`Erro ao deletar reserva ${reservaId}:`, err);
-         const errorMessage = err.response?.data?.detail || 'Erro ao deletar reserva.';
-         setError(errorMessage);
-      } finally {
-         setModifyingReservaId(null);
-      }
+  //     } catch (err: any) {
+  //        console.error(`Erro ao deletar reserva ${reservaId}:`, err);
+  //        const errorMessage = err.response?.data?.detail || 'Erro ao deletar reserva.';
+  //        setError(errorMessage);
+  //     } finally {
+  //        setModifyingReservaId(null);
+  //     }
+  //  };
+
+
+  // **NOVA LÓGICA:** Função auxiliar para formatar data/hora assumindo fuso horário LOCAL (para inicio/fim)
+  const formatDateTimeLocal = (dateTimeString: string) => {
+       try {
+           // Assumindo que a string já representa o horário no fuso horário LOCAL (UTC-3)
+           // new Date(string sem info de fuso) é interpretado no fuso horário LOCAL.
+           const date = new Date(dateTimeString);
+           // toLocaleString formata essa data local para exibição local.
+           return date.toLocaleString(); // Formato local completo (data e hora)
+       } catch (e) {
+            console.error("Erro ao formatar data/hora local:", dateTimeString, e);
+            return "Data/Hora inválida";
+       }
    };
 
-
-  // Função auxiliar para formatar datas (reutilizada)
-  const formatDateTime = (dateTimeString: string) => {
-      const date = new Date(dateTimeString);
-      return date.toLocaleString(); // Formato amigável
-  };
+   // **NOVA LÓGICA:** Função auxiliar para formatar data/hora assumindo UTC (para criação)
+   const formatDateTimeUtc = (dateTimeString: string) => {
+        try {
+            // Assumindo que a string representa horário em UTC e não tem info de fuso ('Z').
+            // Adicionar 'Z' força new Date() a interpretar como UTC antes de converter para local.
+            const date = new Date(dateTimeString + 'Z'); // <--- Adiciona 'Z'
+             // toLocaleString então converte essa data (agora interpretada como UTC) para o fuso horário LOCAL para exibição.
+             return date.toLocaleString(); // Formato amigável no fuso horário LOCAL
+         } catch (e) {
+             console.error("Erro ao formatar data/hora UTC:", dateTimeString, e);
+             return "Data/Hora inválida";
+         }
+    };
 
 
   // Renderização condicional baseada no estado de carregamento do Contexto OU da lista de reservas
@@ -271,10 +293,10 @@ function ManageReservasPage() { // Renomeado
                 <td>{reserva.id}</td>
                 <td>{reserva.ambiente.nome}</td> {/* Exibir nome do ambiente aninhado */}
                 <td>{reserva.usuario.nome}</td> {/* Exibir nome do usuário aninhado */}
-                <td>{formatDateTime(reserva.data_inicio)} a {formatDateTime(reserva.data_fim)}</td>
+                <td>{formatDateTimeLocal(reserva.data_inicio)} a {formatDateTimeLocal(reserva.data_fim)}</td>
                 <td>{reserva.motivo}</td>
                 <td>{reserva.status.toUpperCase()}</td> {/* Exibir status */}
-                 <td>{formatDateTime(reserva.data_criacao)}</td>
+                 <td>{formatDateTimeUtc(reserva.data_criacao)}</td>
                 <td>
                    {/* Ações para Admins */}
 

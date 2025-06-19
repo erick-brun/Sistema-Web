@@ -67,11 +67,33 @@ function HistoryPage() { // Renomeado
   }, []); // Roda apenas uma vez ao montar
 
 
-  // Função auxiliar para formatar datas (reutilizada de MyReservasPage)
-  const formatDateTime = (dateTimeString: string) => {
-      const date = new Date(dateTimeString);
-      return date.toLocaleString(); // Formato amigável
-  };
+  // **NOVA LÓGICA:** Função auxiliar para formatar data/hora assumindo fuso horário LOCAL (para inicio/fim)
+  const formatDateTimeLocal = (dateTimeString: string) => {
+       try {
+           // Assumindo que a string já representa o horário no fuso horário LOCAL (UTC-3)
+           // new Date(string sem info de fuso) é interpretado no fuso horário LOCAL.
+           const date = new Date(dateTimeString);
+           // toLocaleString formata essa data local para exibição local.
+           return date.toLocaleString(); // Formato local completo (data e hora)
+       } catch (e) {
+            console.error("Erro ao formatar data/hora local:", dateTimeString, e);
+            return "Data/Hora inválida";
+       }
+   };
+
+   // **NOVA LÓGICA:** Função auxiliar para formatar data/hora assumindo UTC (para criação)
+   const formatDateTimeUtc = (dateTimeString: string) => {
+        try {
+            // Assumindo que a string representa horário em UTC e não tem info de fuso ('Z').
+            // Adicionar 'Z' força new Date() a interpretar como UTC antes de converter para local.
+            const date = new Date(dateTimeString + 'Z'); // <--- Adiciona 'Z'
+             // toLocaleString então converte essa data (agora interpretada como UTC) para o fuso horário LOCAL para exibição.
+             return date.toLocaleString(); // Formato amigável no fuso horário LOCAL
+         } catch (e) {
+             console.error("Erro ao formatar data/hora UTC:", dateTimeString, e);
+             return "Data/Hora inválida";
+         }
+    };
 
 
   // Renderização condicional
@@ -96,9 +118,9 @@ function HistoryPage() { // Renomeado
               {/* Note que não temos dados aninhados de usuário/ambiente, apenas IDs */}
               <strong>Reserva ID Original: {registro.id}</strong> (Status Final: {registro.status.toUpperCase()})
               <p>Ambiente ID: {registro.ambiente_id}</p> {/* Exibe apenas o ID do ambiente */}
-              <p>Período: {formatDateTime(registro.data_inicio)} a {formatDateTime(registro.data_fim)}</p>
+              <p>Período: {formatDateTimeLocal(registro.data_inicio)} a {formatDateTimeLocal(registro.data_fim)}</p>
               <p>Motivo: {registro.motivo}</p>
-              <p>Solicitada originalmente em: {formatDateTime(registro.data_criacao)}</p>
+              <p>Solicitada originalmente em: {formatDateTimeUtc(registro.data_criacao)}</p>
               {/* Opcional: Exibir o ID do usuário que solicitou (o usuário logado) */}
               {/* <p>Usuário Solicitante ID: {registro.usuario_id}</p> */}
 
