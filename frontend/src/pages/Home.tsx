@@ -149,23 +149,20 @@ function HomePage() {
       }}>
           <Typography variant="h5" gutterBottom>Reservas do Dia por Turno (Público)</Typography>
 
-          {/* Filtros de Data e Turno para o Dashboard (MANTIDOS AQUI em HomePage) */}
-          {/* **MODIFICADO:** Remover o Box com fundo BRANCO que envolvia os filtros */}
-          {/* Os filtros (TextFields, FormControls) terão fundo transparente ou branco padrão */}
-          <Box mb={3} display="flex" gap={2} alignItems="center"> {/* Este Box agora tem fundo transparente (herdando do Box pai branco) */}
+          {/* Filtros de Data e Turno para o Dashboard */}
+          <Box mb={3} display="flex" gap={2} alignItems="center">
               <Typography variant="body1">Visualizando para:</Typography>
-              <Box display="flex" gap={2} alignItems="center"> {/* Flexbox para alinhar inputs */}
 
-               {/* Seletor de Data (Input type="date") */}
-                <TextField
-                    label="Data"
-                    type="date"
-                    value={selectedDate} // YYYY-MM-DD
-                    onChange={handleDateChange}
-                     InputLabelProps={{ shrink: true }}
-                     disabled={loadingDashboard} // Desabilitar enquanto carrega o dashboard
+               {/* **CORRIGIDO:** Apenas UM Seletor de Data (Input type="date") */}
+               <TextField
+                   label="Data"
+                   type="date"
+                   // value formatada para YYYY-MM-DD, necessário para input type="date"
+                   value={selectedDate} // Usa o estado selectedDate
+                   onChange={handleDateChange} // Chama a função de mudança de data
+                    InputLabelProps={{ shrink: true }}
+                    disabled={loadingDashboard} // Desabilitar enquanto carrega
                  />
-
 
                {/* Seletor de Turno (Select) */}
                 <FormControl sx={{ minWidth: 150 }} disabled={loadingDashboard}>
@@ -174,36 +171,34 @@ function HomePage() {
                      labelId="turno-select-label"
                      id="selectedTurno"
                      name="selectedTurno"
-                     value={selectedTurno}
+                     value={selectedTurno} // Usa o estado selectedTurno
                      label="Turno"
-                     onChange={handleTurnoChange}
+                     onChange={handleTurnoChange} // Usa a função de mudança de turno
                      disabled={loadingDashboard}
                    >
+                     {/* Opções de turno */}
                      {turnoOptions.map(turno => (
                          <MenuItem key={turno} value={turno}>{turno.charAt(0).toUpperCase() + turno.slice(1)}</MenuItem>
                      ))}
                    </Select>
                 </FormControl>
-                </Box>
-          <TextField label="Data" type="date" value={selectedDate} onChange={handleDateChange} InputLabelProps={{ shrink: true }} disabled={loadingDashboard} />
-                   <FormControl sx={{ minWidth: 150 }} disabled={loadingDashboard}> {/* ... Select de Turno ... */} </FormControl>
-              
+
+                {/* TODO: Adicionar outros filtros aqui, se necessário */}
+
            </Box>
 
-          {/* **MODIFICADO:** Renderizar o componente DashboardPanel, passando os dados e estados. */}
-          {/* O componente DashboardPanel cuidará de exibir o loading, erro, ou a lista de caixinhas. */}
+          {/* Componente DashboardPanel */}
           <DashboardPanel
-               reservas={reservasDashboard} // Passa a lista de reservas
-               loading={loadingDashboard} // Passa o estado de carregamento
-               error={dashboardError} // Passa o estado de erro
-               selectedDate={selectedDate} // Passa a data selecionada para o título no painel
-               selectedTurno={selectedTurno} // Passa o turno selecionado para o título no painel
+               reservas={reservasDashboard}
+               loading={loadingDashboard}
+               error={dashboardError}
+               selectedDate={selectedDate}
+               selectedTurno={selectedTurno}
           />
 
       </Box>
 
-      {/* O Layout já tem o botão de Logout */}
-
+      {/* ... Outros links e conteúdo ... */}
     </Box>
   );
 }

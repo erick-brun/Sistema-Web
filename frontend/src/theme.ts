@@ -48,12 +48,12 @@ const theme = createTheme({
 
     // As definições de tamanho e peso base para cada variante estão aqui.
     // O espaçamento (margin) é geralmente feito nos styleOverrides dos componentes MU.
-    h1: { fontWeight: 500, fontSize: '2.5rem' },
-    h2: { fontWeight: 500, fontSize: '2rem' },
-    h3: { fontWeight: 500, fontSize: '1.75rem' },
-    h4: { fontWeight: 500, fontSize: '1.5rem' },
-    h5: { fontWeight: 500, fontSize: '1.25rem' },
-    h6: { fontWeight: 500, fontSize: '1rem' },
+    h1: { fontWeight: 700, fontSize: '2.5rem' },
+    h2: { fontWeight: 700, fontSize: '2rem' },
+    h3: { fontWeight: 700, fontSize: '1.75rem' },
+    h4: { fontWeight: 700, fontSize: '1.5rem' },
+    h5: { fontWeight: 700, fontSize: '1.25rem' },
+    h6: { fontWeight: 700, fontSize: '1rem' },
     body1: { fontWeight: 400, fontSize: '1rem' },
     body2: { fontWeight: 400, fontSize: '0.875rem' },
     button: { fontWeight: 700 },
