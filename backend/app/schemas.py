@@ -216,26 +216,45 @@ class ReservaBase(SQLModel):
     data_fim: datetime
     motivo: str = Field(max_length=100)
 
-    # # Validadores para garantir que data_inicio < data_fim, datas futuras, etc.
-    # @validator('data_inicio', 'data_fim')
-    # def datas_futuras(cls, v: datetime) -> datetime: # Type hint
-    #     """Valida se as datas são futuras (comparando com UTC).
-    #     Converte datas ingênuas de entrada para UTC antes da comparação."""
-    #     if v.tzinfo is None:
-    #         v = v.replace(tzinfo=timezone.utc)
+    # # **VALIDADOR DE DATAS FUTURAS**
+    # @validator('data_inicio', 'data_fim', pre=True) # <--- Opcional: Usar pre=True para pré-processar antes da validação de tipo
+    # def datas_futuras(cls, v: any) -> datetime: # Use any para o valor inicial, pois pode vir como string antes de ser parsed
+    #      # Se o valor for None ou já um objeto datetime (após parsing Pydantic inicial)
+    #      if v is None: return v # ou raise ValueError se não permitir None
+    #      if isinstance(v, datetime):
+    #          dt = v # Já é um datetime
+    #     #  elif isinstance(v, str):
+    #     #      try:
+    #     #         # **CORREÇÃO:** Parse a string assumindo UTC ou como neutra e torne UTC
+    #     #         # Pydantic tenta parsear string ISO para datetime automaticamente.
+    #     #         # Se ele parsear como ingênuo, precisamos tornar ciente.
+    #     #         dt = parseISO(v); # <--- Usar parseISO de date-fns (precisa instalar no backend se usar aqui)
+    #     #         # Ou apenas assume que Pydantic parseou corretamente para datetime
+    #     #         # E foca em torná-la ciente se for ingênua.
+    #     #      except Exception as e:
+    #     #          raise ValueError(f'Formato de data/hora inválido: {e}') from e
+    #      else:
+    #          raise ValueError('Valor deve ser string ou datetime.')
+
+    #      # Torna o datetime ciente de fuso horário (UTC) se for ingênuo
+    #      if dt.tzinfo is None:
+    #           dt = dt.replace(tzinfo=timezone.utc) # Assume que a data ingênua é em UTC e anexa a informação
 
 
+    #      # Agora, compara o datetime ciente de UTC com a data/hora UTC atual.
+    #      if dt < datetime.now(timezone.utc): # <--- Comparação segura
+    #          raise ValueError('Datas devem ser futuras')
 
-    #     # Agora, compara o valor de entrada (agora ciente de UTC) com a data/hora UTC atual.
-    #     if v < datetime.now(timezone.utc):
-    #         raise ValueError('Datas devem ser futuras')
+    #      return dt # Retorna o datetime (agora ciente de fuso horário se era string/ingênuo)
 
-    #     return v # Retorna o valor (agora ciente de fuso horário)
-    
+
+    # **VALIDADOR DATA FIM DEPOIS DE DATA INICIO**
     @validator('data_fim')
-    def data_fim_depois_data_inicio(cls, v, values):
-        if 'data_inicio' in values and v <= values['data_inicio']:
-            raise ValueError('Data fim deve ser posterior à data início')
+    def data_fim_depois_data_inicio(cls, v: datetime, values): # v: data_fim
+        # Nota: datas_futuras já rodou, v e values['data_inicio'] DEVEM ser datetimes (agora cientes)
+        if 'data_inicio' in values and values['data_inicio'] is not None and v is not None:
+             if v <= values['data_inicio']: # Comparação segura entre datetimes (agora cientes)
+                 raise ValueError('Data fim deve ser posterior à data início')
         return v
 
 

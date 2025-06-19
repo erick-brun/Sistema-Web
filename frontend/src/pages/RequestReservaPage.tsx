@@ -5,7 +5,10 @@ import api from '../services/api';
 // Importe useParams para obter o parâmetro de ID da URL
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext'; // <--- Importar useAuth
-
+// Importar date-fns (para formatar/parsear datas) - Manter importações se usadas em outros lugares
+// import { parseISO } from 'date-fns';
+// import { formatISO } from 'date-fns';
+// import { format } from 'date-fns';
 // Importar componentes de UI (se usar Material UI)
 import { TextField, Button, Select, MenuItem, FormControl, InputLabel, Checkbox, FormControlLabel, Typography, Box, CircularProgress } from '@mui/material'; // Adicionado CircularProgress
 
@@ -208,53 +211,41 @@ function RequestReservaPage() {
 
     setError(null);
     setSuccessMessage(null);
-    setFormSubmissionError(null); // <--- Limpa erros de submissão anteriores (passados via props)
-    setIsSubmittingForm(true); // Inicia estado de submissão
+    setFormSubmissionError(null);
+    setIsSubmittingForm(true);
 
-    // TODO: Adicionar validação frontend antes de submeter (usando validateForm)
-    // if (!validateForm()) { ... setSubmittingForm(false); return; }
+    // TODO: Adicionar validação frontend antes de submeter (data futura, início < fim)
+    // Use a lógica do backend como guia, mas adapte para o frontend e fusos horários.
+    // Compare com new Date() ou Date.now() no fuso horário local, ou converta para UTC ANTES de comparar.
 
 
     try {
-      // Prepara os dados para enviar.
+      // **REVERTIDO:** Enviar as strings do input datetime-local diretamente.
+      // O backend (FastAPI/Pydantic) irá parsear estas strings.
       const dataToSend = {
           ambiente_id: formData.ambiente_id,
-          data_inicio: formData.data_inicio,
-          data_fim: formData.data_fim,
+          data_inicio: formData.data_inicio, // <--- Enviando string direta do input
+          data_fim: formData.data_fim,     // <--- Enviando string direta do input
           motivo: formData.motivo,
       };
+
 
       let response;
       let successMessageText;
 
-      // Lógica para escolher entre POST (criar) e PATCH (editar)
       if (reservaId) {
-          // Modo edição: Chamar endpoint PATCH para atualizar a reserva
-          console.log(`Modo edição: Enviando atualização para reserva ${reservaId}:`, dataToSend);
-          // PATCH /reservas/{reserva_id} requer autenticação (qualquer logado), backend lida com permissão (dono/admin)
-          response = await api.patch(`/reservas/${reservaId}`, dataToSend); // Envia JSON
+          // Modo edição: PATCH
+          response = await api.patch(`/reservas/${reservaId}`, dataToSend);
           successMessageText = 'Reserva atualizada com sucesso!';
 
       } else {
-          // Modo criação: Chamar endpoint POST para criar nova reserva
-          console.log("Modo criação: Enviando solicitação de nova reserva:", dataToSend);
-          // POST /reservas/ requer autenticação.
+          // Modo criação: POST
           // Adicionar o query parameter 'reservar_para_usuario_id' SE um usuário foi selecionado por um admin.
-          // A rota backend POST /reservas/ espera 'reservar_para_usuario_id' como QUERY PARAM.
-          const params: any = {}; // Usar 'any' para params por enquanto
-          if (selectedUserId && user?.tipo === 'admin') { // Só adiciona o parâmetro se admin selecionou um usuário E ele é admin logado
+          const params: any = {};
+          if (selectedUserId && user?.tipo === 'admin') {
                params.reservar_para_usuario_id = selectedUserId;
-               console.log(`Admin está criando reserva para usuário ID: ${selectedUserId}`);
-          } else if (!selectedUserId && user?.tipo === 'admin'){ // Admin não selecionou, cria para si mesmo (o backend usa o ID logado)
-                console.log(`Admin está criando reserva para si mesmo ID: ${user.id}`);
-               // Não adicionar o query param, o backend usa o ID do usuário logado.
-          } else {
-               // Não admin, o backend usará o ID do usuário logado por padrão.
-               console.log(`Usuário comum está criando reserva para si mesmo ID: ${user?.id}`);
           }
-
-
-          response = await api.post('/reservas/', dataToSend, { params: params }); // Envia JSON com QUERY PARAM opcional
+          response = await api.post('/reservas/', dataToSend, { params: params });
           successMessageText = 'Reserva solicitada com sucesso! Aguardando confirmação.';
       }
 

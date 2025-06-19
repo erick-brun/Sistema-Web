@@ -3,7 +3,7 @@
  
 from sqlmodel import SQLModel, Field, Relationship
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 import uuid
 
@@ -36,7 +36,7 @@ class Usuario(SQLModel, table=True):
     )
 
     ativo: bool = Field(default=True) # usuario por padrão já está ativo, até que algum admin desative
-    data_criacao: datetime = Field(default_factory=datetime.now)  # Data da criação do usuário
+    data_criacao: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))  # Data da criação do usuário
     # Relacionamento inverso (um Usuario pode ter muitas Reservas)
     reservas: List["Reserva"] = Relationship(back_populates="usuario")
 
@@ -122,7 +122,7 @@ class Reserva(SQLModel, table=True):
     # Datas e horários
     data_inicio: datetime = Field(index=True)  # Quando a reserva começa
     data_fim: datetime = Field(index=True)   # Quando a reserva termina
-    data_criacao: datetime = Field(default_factory=datetime.now)  # Data da solicitação
+    data_criacao: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))  # Data da solicitação
     
     # Status e metadados
     status: StatusReserva = Field(default=StatusReserva.PENDENTE)

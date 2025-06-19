@@ -1,6 +1,6 @@
 // frontend/src/services/api.ts
 
-import axios from 'axios';
+import axios, { AxiosError } from 'axios'; // <--- Importe AxiosError para tipagem
 // Se estiver usando react-router-dom para redirecionamento programático:
 // import { createBrowserHistory } from 'history'; // Exemplo para v5
 // const history = createBrowserHistory(); // Exemplo para v5
@@ -8,6 +8,9 @@ import axios from 'axios';
 
 // Use a variável de ambiente VITE_API_URL definida no .env da pasta frontend
 const API_URL: string = import.meta.env.VITE_API_URL;
+
+// Defina o caminho relativo do endpoint de login para comparação no interceptor
+const LOGIN_PATH = '/usuarios/login'; // <--- Defina o CAMINHO relativo do endpoint de login
 
 // Crie uma instância do axios com a URL base da API
 const api = axios.create({
@@ -17,9 +20,6 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
-// Use a URL base para construir a URL completa do endpoint de login para comparação
-const LOGIN_URL = `${API_URL}/usuarios/login`; // Defina a URL completa do login
 
 // =============================================
 // Interceptor de Requisição: Adicionar o Token JWT
@@ -32,6 +32,8 @@ api.interceptors.request.use(
     const token = localStorage.getItem('accessToken'); // Use 'accessToken' como a chave
 
     // Se o token existir, adicione-o ao header Authorization no formato Bearer.
+    // Nota: Mesmo que a requisição seja para /usuarios/login, o token será adicionado.
+    // Isso não causa problema no backend se a rota de login não esperar autenticação.
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
@@ -52,21 +54,40 @@ api.interceptors.request.use(
 // Ele é útil para lidar globalmente com certos status codes de erro.
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
+  async (error: AxiosError) => {
     const originalRequest = error.config;
 
-    // **CORREÇÃO:** Compare a URL da requisição original com a URL completa do login endpoint.
-    // Certifique-se que a URL original da requisição que retornou 401 NÃO é o endpoint de login.
-    if (error.response && error.response.status === 401 && originalRequest.url !== LOGIN_URL) {
-      console.log('Token expirado ou inválido. Redirecionando para login...');
+    // Lógica de redirecionamento/limpeza SÓ se for 401 E NÃO for o endpoint de login
+    const requestUrl = originalRequest?.url || '';
+    let relativeRequestPath = requestUrl;
+
+    // **CORREÇÃO:** Acessar baseURL através do objeto 'api'
+    const baseURL = api.defaults.baseURL || ''; // <--- CORRIGIDO: Acessa o baseURL da instância api.
+
+    // Se a URL original for absoluta e começar com baseURL, remova baseURL para obter o caminho relativo
+    if (baseURL && requestUrl.startsWith(baseURL)) {
+         relativeRequestPath = requestUrl.substring(baseURL.length);
+         // Garante que o caminho relativo começa com '/'
+         if (!relativeRequestPath.startsWith('/')) {
+              relativeRequestPath = '/' + relativeRequestPath;
+         }
+    }
+    // Opcional: Log para verificar o caminho relativo
+    // console.log("Interceptor: URL Original:", requestUrl, "Base URL:", baseURL, "Caminho Relativo:", relativeRequestPath);
+
+
+    const isLoginEndpoint = relativeRequestPath.endsWith(LOGIN_PATH);
+
+    if (error.response && error.response.status === 401 && !isLoginEndpoint) {
+      console.log('Interceptor 401: Token expirado ou inválido. Redirecionando para login...');
+      // ... lógica de limpeza de storage e redirecionamento ...
       localStorage.removeItem('accessToken');
-      localStorage.removeItem('loggedInUserId'); // Se armazenou o ID
-      window.location.href = '/login'; // Redireciona
+      localStorage.removeItem('loggedInUserId');
+      window.location.href = '/login';
       return Promise.reject(error);
     }
 
     // Para outros erros (incluindo 401 na página de login), apenas propaga o erro.
-    // O componente Login.tsx vai capturar o 401 e exibir a mensagem "Credenciais inválidas".
     return Promise.reject(error);
   }
 );

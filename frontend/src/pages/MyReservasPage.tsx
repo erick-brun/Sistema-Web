@@ -168,13 +168,19 @@ function MyReservasPage() {
   };
 
 
-  // Função auxiliar para formatar datas para exibição (já existente)
-  const formatDateTime = (dateTimeString: string) => {
-      const date = new Date(dateTimeString);
-      // Opcional: Adicionar tratamento para fuso horário se as datas forem UTC no backend
-      // const date = new Date(dateTimeString + 'Z'); // Adicionar 'Z' se for string ISO sem offset, mas é UTC
-      return date.toLocaleString(); // Formato amigável
-  };
+  // Função auxiliar para formatar datas para exibição (interpretar como UTC e formatar local)
+const formatDateTime = (dateTimeString: string) => {
+     try {
+        // **CORREÇÃO:** Interpretar a string como sendo em UTC ('Z') e criar um objeto Date.
+        // O construtor new Date() lida com 'Z' convertendo para o ponto no tempo UTC.
+        // toLocaleString() então converte esse ponto no tempo para o fuso horário LOCAL para exibição.
+        const date = new Date(dateTimeString + 'Z'); // <--- Adicionar 'Z' se a string não tiver
+         return date.toLocaleString(); // Formato amigável no fuso horário LOCAL
+     } catch (e) {
+         console.error("Erro ao formatar data/hora:", dateTimeString, e);
+         return "Data/Hora inválida";
+     }
+ };
 
 
   // Renderização condicional (loading do AuthContext OU loading das Reservas)

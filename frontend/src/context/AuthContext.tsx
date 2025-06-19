@@ -138,7 +138,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Ou use window.location.href = '/home';
 
     } catch (error) {
-      console.error("Falha no login:", error);
+      console.error("Contexto Login: Falha no login (capturado no contexto):", error); // Debug de erro
       // Limpa tokens e dados no storage
       localStorage.removeItem('accessToken');
       localStorage.removeItem('loggedInUserId');

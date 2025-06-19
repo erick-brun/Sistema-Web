@@ -13,12 +13,18 @@ function LoginPage() {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth(); // <--- Obtenha login e isAuthenticated do contexto
 
-  // Se já autenticado, redirecionar (útil se o usuário tentar ir para /login manualmente estando logado)
+  // useEffect para redirecionar se já autenticado (existente)
   useEffect(() => {
      if (isAuthenticated) {
+         console.log("Login.tsx useEffect: isAuthenticated =", isAuthenticated, ". Redirecionando."); // Debug
          navigate('/home');
      }
-  }, [isAuthenticated, navigate]); // Roda quando isAuthenticated ou navigate mudam
+     // **NOVA LÓGICA:** Limpar erro se o usuário *se tornou* autenticado.
+     // Isso garante que erros de login falho NÃO são limpos até um login de sucesso.
+     if (isAuthenticated) {
+        setError(null); // Limpa o erro se autenticado
+     }
+  }, [isAuthenticated, navigate]); // Depende de isAuthenticated e navigate
 
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -41,9 +47,10 @@ function LoginPage() {
     } catch (err: any) {
        // O contexto login propaga o erro. Lide com ele aqui para exibir a mensagem.
        console.error('Login falhou (capturado em Login.tsx):', err); // Debug
-       console.error('Login falhou:', err);
        const errorMessage = err.response?.data?.detail || 'Erro desconhecido ao fazer login. Tente novamente.';
+       console.log("Login: Mensagem de erro extraída:", errorMessage);
        setError(errorMessage);
+       console.log("Login: Estado 'error' definido como:", errorMessage);
     }
   };
 
