@@ -41,6 +41,7 @@ const theme = createTheme({
         secondary: senaiCinzaTextoSecundario,
         light: senaiBrancoPuro, // Branco para texto em fundos escuros
         appBarLink: senaiCinzaTextoPrincipal, // Cor padrão dos links na barra branca
+        pageTitle: '#00529c', // <--- Exemplo: Um azul claro (ajustar valor para o tom exato do Senai #84c7e4)
     },
   },
   typography: { // Configuração de fontes e defaults para variações
@@ -64,9 +65,9 @@ const theme = createTheme({
           styleOverrides: {
               root: ({ theme }) => ({ // <--- FUNÇÃO AQUI para acessar theme
                   // **MODIFICADO:** Aumentar ainda mais a grossura/altura mínima da barra
-                  minHeight: 88, // Exemplo: Aumentar para 88px (ajustar)
+                  minHeight: 60, // Exemplo: Aumentar para 88px (ajustar)
                   backgroundColor: theme.palette.background.paper, // Fundo branco
-                  boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', // Sombra inferior
+                  // boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)', // Sombra inferior
               }),
           },
       },
@@ -91,25 +92,32 @@ const theme = createTheme({
        },
    MuiButton: { // Customizar Botões
          styleOverrides: { // <--- styleOverrides AQUI
-             root: ({ theme }) => ({ // Estilos base aplicados a TODOS os botões
-                // Padding base (ajustado para espaçamento interno nos botões)
+             root: ({ theme }) => ({
                  paddingLeft: theme.spacing(1.5),
                  paddingRight: theme.spacing(1.5),
-                 // Peso da fonte (agora 700)
                  fontWeight: 700,
 
-                 // Removido: Definição de cor padrão e hover aqui no root.
-                 // Essas cores/efeitos serão definidos para VARIAÇÕES específicas abaixo.
-           }),
+                 // Cor padrão dos links (cinza escuro)
+                 color: theme.palette.text.appBarLink,
 
-            // **CORRIGIDO:** Estilos para variant="contained" color="primary"
-             containedPrimary: ({ theme }) => ({ // <--- FUNÇÃO AQUI
-                // Fundo: primary.main (azul)
-                // Cor do texto: primary.contrastText (branco)
-                // Estes já são pegos do tema por padrão quando variant="contained" color="primary"
-                // Mas você pode customizar aqui se quiser algo diferente.
-                // Ex: backgroundColor: theme.palette.primary.dark, // Usar um azul mais escuro no hover
-                // Ex: '&:hover': { backgroundColor: theme.palette.primary.dark },
+                // Efeito de hover - Remover aumento de tamanho
+                 transition: 'color 0.3s ease', // Apenas transição de cor
+                  '&:hover': { // Estilos no hover
+                      color: theme.palette.text.secondary,
+                      // Removido: fontSize: '1.01rem', // Não aumentar tamanho
+                      backgroundColor: 'transparent',
+                  },
+            }),
+
+            // **CORREÇÃO:** Estilos para variant="contained" color="primary"
+             containedPrimary: ({ theme }) => ({ // <--- ESTILO PARA BOTÕES AZUIS PREENCHIDOS
+                // Fundo: primary.main (azul) - Padrão
+                // **CORRIGIDO:** Forçar a cor do texto para branco
+                 color: theme.palette.text.light, // <--- ADICIONADO: Forçar cor branca do texto
+                // Alternativa: color: senaiBrancoPuro, // Usando a variável CSS/constante
+
+                // Opcional: Efeito de hover (se quiser)
+                 // '&:hover': { backgroundColor: theme.palette.primary.dark }, // Fundo mais escuro no hover
              }),
 
             // **CORRIGIDO:** Estilos para variant="outlined" color="primary"
@@ -135,22 +143,45 @@ const theme = createTheme({
                   },
             }),
 
+            textError: ({ theme }) => ({ // <--- ESTILO PARA BOTÕES VERMELHOS SEM FUNDO NEM BORDA
+                  // Cor do texto: error.main (vermelho)
+                   color: theme.palette.error.main, // <--- Forçar cor vermelha
+
+                 // Opcional: Efeito no hover
+                  '&:hover': {
+                      backgroundColor: 'rgba(244, 67, 54, 0.04)', // Exemplo: fundo sutil no hover (usando RGBA do vermelho)
+                  },
+            }),
+
+            outlinedError: ({ theme }) => ({ // <--- ESTILO PARA BOTÕES VERMELHOS CONTORNADOS
+                  // Cor do texto e borda: error.main (vermelho)
+                  color: theme.palette.error.main, // <--- Forçar cor vermelha do texto
+                  borderColor: theme.palette.error.main, // <--- Forçar cor vermelha da borda
+
+                  // Opcional: Estilo no hover
+                   '&:hover': {
+                       // Cor/borda mais escura no hover (usando error.dark)
+                       borderColor: theme.palette.error.dark,
+                       color: theme.palette.error.dark,
+                       backgroundColor: 'transparent', // Manter transparente
+                   },
+             }),
+
             // **CORRIGIDO:** Estilos para variant="text" color="inherit" (usado nos links da AppBar)
             // Links na AppBar usam variant="text" e color="inherit".
             // A cor "inherit" pega a cor do texto do elemento pai (Toolbar/AppBar).
             // A cor do texto padrão do AppBar foi modificada no tema.palette.text.appBarLink.
             // Podemos customizar o estilo para textInherit aqui para aplicar os efeitos de hover.
-            textInherit: ({ theme }) => ({ // <--- FUNÇÃO AQUI para variant="text" color="inherit"
-                 color: theme.palette.text.appBarLink, // Cor padrão (cinza escuro)
-
-                 // Efeito de hover (copiado de root, mas aplicado aqui)
-                 transition: 'color 0.3s ease', // Transição apenas para cor
-                  '&:hover': {
-                      color: theme.palette.text.primary, // Cor de texto primária (cinza mais escuro) no hover
-                      // Remover: fontSize: '1.01rem', // Não aumentar tamanho
-                      backgroundColor: 'transparent', // Manter fundo transparente
-                  },
+            textInherit: ({ theme }) => ({ // Estilos para variant="text" color="inherit" (links na AppBar)
+                  color: theme.palette.text.appBarLink, // Cor padrão (cinza escuro)
+                 // Efeito de hover - Copiado do root, mas garante que se aplica a textInherit
+                  transition: 'color 0.3s ease',
+                   '&:hover': {
+                       color: theme.palette.text.secondary,
+                       backgroundColor: 'transparent',
+                   },
             }),
+
 
 
             // Opcional: Customizar tamanhos (small, medium, large)
@@ -193,19 +224,21 @@ const theme = createTheme({
              })
          }
      },
-     MuiTypography: { // Customizar Typography (margens)
-         styleOverrides: {
-             h1: ({ theme }) => ({ marginBottom: theme.spacing(4) }), // <--- FUNÇÃO AQUI
-             h2: ({ theme }) => ({ marginBottom: theme.spacing(3) }), // <--- FUNÇÃO AQUI
-             h3: ({ theme }) => ({ marginBottom: theme.spacing(2) }), // <--- FUNÇÃO AQUI
-             h4: ({ theme }) => ({ marginBottom: theme.spacing(2) }), // <--- FUNÇÃO AQUI
-             h5: ({ theme }) => ({ marginBottom: theme.spacing(2) }), // <--- FUNÇÃO AQUI
-             h6: ({ theme }) => ({ marginBottom: theme.spacing(2) }), // <--- FUNÇÃO AQUI
-             body1: ({ theme }) => ({ marginBottom: theme.spacing(1) }), // <--- FUNÇÃO AQUI
-              body2: ({ theme }) => ({ marginBottom: theme.spacing(1) }), // <--- FUNÇÃO AQUI
-              // button: ({ theme }) => ({ fontWeight: 500 }), // Se customizado aqui
-         },
-     },
+     MuiTypography: { // Customizar Typography (margens e cor para títulos)
+        styleOverrides: {
+            // Margens e pesos já definidos.
+            // **ADICIONADO:** Cor para os títulos (h1-h6)
+            h1: ({ theme }) => ({ marginBottom: theme.spacing(4), color: theme.palette.text.pageTitle, important: true  }), // <--- ADICIONADO cor
+            h2: ({ theme }) => ({ marginBottom: theme.spacing(3), color: theme.palette.text.pageTitle, important: true  }), // <--- ADICIONADO cor
+            h3: ({ theme }) => ({ marginBottom: theme.spacing(2), color: theme.palette.text.pageTitle, important: true  }), // <--- ADICIONADO cor
+            h4: ({ theme }) => ({ marginBottom: theme.spacing(2), color: theme.palette.text.pageTitle, important: true  }), // <--- ADICIONADO cor
+            h5: ({ theme }) => ({ marginBottom: theme.spacing(2), color: theme.palette.text.pageTitle, important: true  }), // <--- ADICIONADO cor
+            h6: ({ theme }) => ({ marginBottom: theme.spacing(2), color: theme.palette.text.pageTitle, important: true  }), // <--- ADICIONADO cor
+
+            body1: ({ theme }) => ({ marginBottom: theme.spacing(1) }),
+             body2: ({ theme }) => ({ marginBottom: theme.spacing(1) }),
+        },
+    },
 
   }, // FIM DA SEÇÃO COMPONENTS
   // Opcional: Adicionar configurações para breakpoints (responsividade)

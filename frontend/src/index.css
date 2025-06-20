@@ -4,13 +4,10 @@
    Reset CSS Básico
 ============================================= */
 body {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  /* Remover font-family, background-color, color se o ThemeProvider as cobrir no body */
-  /* font-family: 'Roboto', sans-serif; */
-  /* background-color: var(--color-background-primary); */
-  /* color: var(--color-text-primary); */
+  margin: 0; padding: 0; box-sizing: border-box;
+  font-family: 'Roboto', sans-serif;
+  background-color: var(--color-background-primary); /* Cor de fundo do body */
+  color: var(--color-text-primary);
   line-height: 1.5;
 }
 
@@ -47,6 +44,10 @@ body {
    Definição de Variáveis CSS Customizadas (Cores e Outros) - MANTER
 ============================================= */
 :root {
+   margin: 0; padding: 0; box-sizing: border-box; /* Remover margem/padding */
+   min-height: 100vh; /* Ocupar pelo menos 100% da altura da viewport */
+  /* Opcional: display: flex; flex-direction: column; para layout flexível da raiz */
+
   /* Cores do Senai */
   --color-senai-azul-principal: #00529c;
   --color-senai-branco-puro: #FFFFFF;
