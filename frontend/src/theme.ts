@@ -1,10 +1,8 @@
 // frontend/src/theme.ts
 
 import { createTheme } from '@mui/material/styles';
-// Importar TypographyVariant, Theme para tipagem opcional
-import { TypographyVariants } from '@mui/material/styles';
 
-// Defina suas cores base (inspirado no site firjansenai.com.br)
+// cores base 
 const senaiAzulPrincipal = '#00529c'; // Azul vibrante para header, botões primários
 const senaiBrancoPuro = '#FFFFFF'; // Branco puro para texto em fundos escuros, cards
 const senaiCinzaClaro = '#F8F8F8'; // Fundo principal "não tão branco"
@@ -12,7 +10,6 @@ const senaiCinzaTextoPrincipal = '#333333'; // Cinza escuro para texto principal
 const senaiCinzaTextoSecundario = '#666666'; // Cinza mais claro para texto secundário
 const senaiVerde = '#8bc34a'; // Verde para sucesso
 const senaiVermelhoErro = '#f44336'; // Vermelho para erros
-
 
 // Crie seu tema customizado
 const theme = createTheme({
@@ -30,18 +27,17 @@ const theme = createTheme({
         contrastText: senaiBrancoPuro,
     },
      background: {
-      // **MODIFICADO:** Fundo padrão da aplicação (body) - Cinza claro
+      
       default: '#F0F0F0', // Exemplo: Um cinza bem, bem claro (ajustar valor)
       paper: senaiBrancoPuro, // Fundo para componentes como Paper, Card (branco puro)
-      // **ADICIONADO:** Uma cor específica para o fundo do painel do dashboard (cinza claro)
-      dashboardPanel: '#F0F0F0', // <--- Nova cor customizada para fundo de painel (cinza claro)
+      dashboardPanel: '#F2F2F2', // <--- Nova cor customizada para fundo de painel (cinza claro)
     },
     text: {
         primary: senaiCinzaTextoPrincipal,
         secondary: senaiCinzaTextoSecundario,
         light: senaiBrancoPuro, // Branco para texto em fundos escuros
         appBarLink: senaiCinzaTextoPrincipal, // Cor padrão dos links na barra branca
-        pageTitle: '#00529c', // <--- Exemplo: Um azul claro (ajustar valor para o tom exato do Senai #84c7e4)
+        pageTitle: '#00529c', 
     },
   },
   typography: { // Configuração de fontes e defaults para variações

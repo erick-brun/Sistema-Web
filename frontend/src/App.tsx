@@ -21,13 +21,9 @@ import HistoryPageAdmin from './pages/HistoryPageAdmin'; // Histórico Geral
 
 // Importe seu componente de Rota Protegida E o componente de Layout
 import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout'; // <--- ADICIONAR: Importa o componente Layout
-
-// Importe o Provedor de Autenticação (se o roteamento estiver dentro de App.tsx e main.tsx renderiza App)
-// import { AuthProvider } from './context/AuthContext';
+import Layout from './components/Layout';
 
 
-// Se o roteamento estiver dentro de App.tsx (renderizado por main.tsx com AuthProvider)
 function App() { // Componente App
     return (
         <BrowserRouter>
@@ -38,14 +34,12 @@ function App() { // Componente App
 
             {/* 
               Rotas PROTEGIDAS (exigem autenticação).
-              Usamos o componente ProtectedRoute para verificar a autenticação.
-              **MODIFICADO:** O componente Layout agora envolve o conteúdo da página protegida.
             */}
             <Route
               path="/home"
               element={
                 <ProtectedRoute>
-                  {/* **ADICIONADO:** Layout envolve a página Home */}
+                  {/* página Home */}
                   <Layout><Home /></Layout>
                 </ProtectedRoute>
               }
@@ -55,7 +49,7 @@ function App() { // Componente App
               path="/ambientes"
               element={
                 <ProtectedRoute>
-                  {/* **ADICIONADO:** Layout envolve a página AmbientesPage */}
+                  {/* página AmbientesPage */}
                   <Layout><AmbientesPage /></Layout>
                 </ProtectedRoute>
               }
@@ -64,7 +58,7 @@ function App() { // Componente App
               path="/ambientes/:ambienteId"
               element={
                 <ProtectedRoute>
-                  {/* **ADICIONADO:** Layout envolve a página AmbienteDetailPage */}
+                  {/* página AmbienteDetailPage */}
                   <Layout><AmbienteDetailPage /></Layout>
                 </ProtectedRoute>
               }

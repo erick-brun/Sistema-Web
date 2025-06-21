@@ -8,11 +8,9 @@ import { Box, Typography, Paper, Button, CircularProgress, useTheme } from '@mui
 // Importe ícone de sair da tela cheia (opcional)
 // import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 
-// Reutilize a interface para os dados de reserva do dashboard
 interface ReservaDashboardData {
   ambiente_nome: string;
-  // **ADICIONADO:** Incluir tipo_ambiente para agrupar
-  tipo_ambiente: string; // <--- ADICIONADO (Assumindo string do Enum)
+  tipo_ambiente: string; //
   data_inicio: string; // ISO 8601 string
   data_fim: string;    // ISO 8601 string
   usuario_nome: string;
@@ -151,8 +149,7 @@ const DashboardPanel: React.FC<DashboardPanelProps> = ({ reservas, loading, erro
 
 
   return (
-    // Container principal do painel (será referenciado para tela cheia)
-    // **MODIFICADO:** Adicionar fundo cinza (usando a cor do tema)
+    // Container principal do painel 
     <Box
         ref={panelRef}
         sx={{

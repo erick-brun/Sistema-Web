@@ -17,36 +17,17 @@ body {
   box-sizing: inherit;
 }
 
-/* Remover estilos de foco se desejar (opcional) */
-/* :focus { outline: none; } */
-
-/* Remover underline de links por padrão (opcional) */
-/* Ajustar para que links DENTRO de componentes MU com color="inherit" funcionem com o tema */
  a {
    text-decoration: none;
-   /* Remover color: var(--color-text-link); se links forem Button component={Link} */
-   /* color: var(--color-text-link); */
  }
 
 
-/* Remover margens padrão de alguns elementos (opcional - MU Typography já lida) */
-/* h1, h2, ..., p, ul, ... */
-
-
-/* Remover estilos de tabela padrão (MU Table components já estilizam) */
-/* table, th, td, tr, thead, tbody, ... */
-
-/* Remover estilos de botão padrão (MU Button já estiliza) */
-/* button */
-
-
 /* =============================================
-   Definição de Variáveis CSS Customizadas (Cores e Outros) - MANTER
+   Definição de Variáveis CSS Customizadas (Cores e Outros)
 ============================================= */
 :root {
-   margin: 0; padding: 0; box-sizing: border-box; /* Remover margem/padding */
-   min-height: 100vh; /* Ocupar pelo menos 100% da altura da viewport */
-  /* Opcional: display: flex; flex-direction: column; para layout flexível da raiz */
+   margin: 0; padding: 0; box-sizing: border-box; 
+   min-height: 100vh; 
 
   /* Cores do Senai */
   --color-senai-azul-principal: #00529c;
@@ -55,7 +36,7 @@ body {
   --color-senai-cinza-texto-principal: #333333;
   --color-senai-cinza-texto-secundario: #666666;
   --color-senai-vermelho-erro: #f44336;
-  --color-senai-verde-sucesso: #4CAF50; /* Se não definiu verde em theme.ts */
+  --color-senai-verde-sucesso: #4CAF50; 
 
 
   /* Cores de Fundo (Podem ser definidas no tema MU, mas manter variáveis é flexível) */
@@ -88,13 +69,6 @@ body {
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
 
 
-/* =============================================
-   Estilos Gerais (Aplicar a Elementos Comuns) - REMOVER se o tema MU cobrir
-============================================= */
-/* h1, h2, ..., p */
-/* ul, ol, li */
-/* table, th, td */
-
 /* Estilos para mensagens de erro/sucesso (usadas nas páginas) - MANTER e usar variáveis CSS */
 /* Ajustar seletores se usar Typography com color="error/success" */
 .message-error {
@@ -106,19 +80,3 @@ body {
     color: var(--color-success); /* Usar variável */
     font-weight: bold;
 }
-
-
-/* =============================================
-   Estilos para Elementos Material UI (Usando Seletores de Classe Global - CAUTELA)
-   REMOVER ou MANTER APENAS SE NECESSÁRIO PARA SOBRESCREVER DEFAULTS DO TEMA
-============================================= */
-/* .MuiAppBar-root */
-/* .MuiButton-root */
-/* .MuiPaper-root */
-/* .MuiTextField-root */
-/* .MuiFormControl-root */
-/* .MuiTypography-root */
-
-/* =============================================
-   Componentes Específicos (Usar Propriedade SX ou Styled) - LEMBRETE
-============================================= */

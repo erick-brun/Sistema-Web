@@ -17,14 +17,12 @@ import { format, formatISO, parseISO } from 'date-fns'; // Para formatar/parsear
 // Importe Material UI
 import { TextField, Button, Select, MenuItem, FormControl, InputLabel, Typography, Box, CircularProgress, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 
-// **IMPORTAR:** Componente DashboardPanel
+// Componente DashboardPanel
 import DashboardPanel from '../components/DashboardPanel'; // <--- IMPORTADO: Componente do Painel
 
-// Reutilize interfaces (já definidas)
 interface UsuarioData { id: string; nome: string; email: string; tipo: 'user' | 'admin'; ativo: boolean; data_criacao: string; /* ... */ }
 
-// Reutilize a interface para os dados de reserva do dashboard
-interface ReservaDashboardData { // Baseado no schema ReservaDashboard do backend
+interface ReservaDashboardData { 
   ambiente_nome: string;
   data_inicio: string; // ISO 8601 string (datetime)
   data_fim: string;    // ISO 8601 string (datetime)
@@ -33,7 +31,7 @@ interface ReservaDashboardData { // Baseado no schema ReservaDashboard do backen
   // Opcional: id, status
 }
 
-// TODO: Definir opções para Turnos (deve corresponder ao backend)
+// Opções para Turnos
 const turnoOptions = ['manha', 'tarde', 'noite'];
 
 
@@ -42,20 +40,20 @@ function HomePage() {
   // Obtenha o usuário logado do contexto
   const { user, logout, loading: authLoading } = useAuth();
 
-  // **NOVO ESTADO:** State para a lista de reservas do dashboard
+  // State para a lista de reservas do dashboard
   const [reservasDashboard, setReservasDashboard] = useState<ReservaDashboardData[]>([]);
 
-  // **NOVO ESTADO:** State para os filtros do dashboard (data e turno)
+  // State para os filtros do dashboard (data e turno)
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd')); // Começa com a data atual formatada
   const [selectedTurno, setSelectedTurno] = useState<string>('manha'); // Começa com o turno padrão
 
-  // **NOVO ESTADO:** State para lidar com estado de carregamento do DASHBOARD
+  // State para lidar com estado de carregamento do DASHBOARD
   const [loadingDashboard, setLoadingDashboard] = useState<boolean>(true); // Estado de carregamento apenas para a lista do dashboard
-  // **NOVO ESTADO:** State para lidar com erros do DASHBOARD
+  // State para lidar com erros do DASHBOARD
   const [dashboardError, setDashboardError] = useState<string | null>(null);
 
 
-  // **NOVA LÓGICA:** Função para buscar os dados do dashboard
+  // Função para buscar os dados do dashboard
   const fetchDashboardReservas = useCallback(async () => {
        // Verificar se a data e o turno estão selecionados
        if (!selectedDate || !selectedTurno) {
@@ -138,7 +136,6 @@ function HomePage() {
       {/* ... Título principal e dados do usuário logado ... */}
 
       {/* Seção do Dashboard (incluindo filtros e o painel) */}
-      {/* **MODIFICADO:** Cor de fundo BRANCO para a seção dashboard (que envolve filtros e painel) */}
       <Box sx={{
           mb: 4,
           padding: 3, // Padding interno da seção dashboard

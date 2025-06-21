@@ -7,14 +7,8 @@ import { useAuth } from '../context/AuthContext';
 // Importar componentes de UI do Material UI
 import { AppBar, Toolbar, Button, Box, Typography, useTheme } from '@mui/material';
 
-// **ADICIONADO:** Importar a Logo do Senai
-// Use a importação especial do Vite para assets da pasta public/
-// O nome do arquivo deve ser o nome real do seu arquivo de logo em frontend/public/
-// Ex: '/logo_senai.png' ou '/logo_senai.svg'
-const senaiLogo = '/logo_senai.png'; // <--- SUBSTITUIR pelo nome do seu arquivo em public/
+const senaiLogo = '/logo_senai.png'; 
 
-
-// Interface para as props do componente Layout (existente)
 interface LayoutProps {
   children: ReactNode;
 }
@@ -22,8 +16,8 @@ interface LayoutProps {
 // Componente de Layout com Barra de Navegação
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, logout, isAuthenticated, loading: authLoading } = useAuth();
-  const location = useLocation(); // <--- ADICIONADO: Hook para obter a localização atual
-  const theme = useTheme(); // <--- ADICIONADO: Hook para acessar o tema
+  const location = useLocation();
+  const theme = useTheme(); 
 
 
   const handleLogout = () => {
@@ -31,7 +25,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   if (authLoading) {
-    return null; // Ou um spinner global
+    return null; 
   }
 
 
@@ -51,8 +45,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <Toolbar>
           {/* Logo do Senai */}
           <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
-              {/* Opcional: Tornar a Logo um link para a Home */}
-              <Link to="/home"> {/* <--- ADICIONADO Link */}
+              {/* Tornar a Logo um link para a Home */}
+              <Link to="/home"> 
                  <img src={senaiLogo} alt="Logo Senai" style={{ height: 50 }} />
               </Link>
           </Box>
@@ -62,7 +56,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
              {isAuthenticated && (
                 <>
                    {/* Links usando Button component={Link} */}
-                   {/* **MODIFICADO:** Adicionar estilo condicional para link ativo */}
+                   {/* Adicionar estilo condicional para link ativo */}
                    <Button
                        color="inherit"
                        component={Link}
@@ -72,7 +66,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                            color: isLinkActive('/home') ? theme.palette.primary.main : theme.palette.text.appBarLink, // Azul se ativo, cinza escuro se inativo
                            fontWeight: isLinkActive('/home') ? 700 : 700, // Negrito se ativo
                        }}
-                   >Início</Button> {/* Rota /home */} {/* Corrigido caminho */}
+                   >Início</Button> {/* Rota /home */} 
 
                    <Button
                        color="inherit" component={Link} to="/ambientes"
