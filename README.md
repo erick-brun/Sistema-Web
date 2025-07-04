@@ -29,23 +29,7 @@ O projeto foi construído utilizando um stack tecnológico moderno:
 - **Frontend:** Construído com **React** e **TypeScript**, utilizando **Vite** como ferramenta de build. A interface é estilizada com a biblioteca **Material UI**.
 - **Infraestrutura:** A aplicação é executada em contêineres **Docker** orquestrados por **Docker Compose**, com **Nginx** atuando como servidor web e proxy reverso.
 
-## Configuração e Execução (Desenvolvimento)
-
-Para executar o projeto em seu ambiente local, você precisará ter o Docker e Docker Compose instalados.
-
-1.  Clone o repositório.
-2.  Crie um arquivo `.env` na raiz do projeto e configure as variáveis de ambiente (consulte o arquivo `.env.example` se disponível).
-3.  Execute `docker-compose up --build -d` no terminal na raiz do projeto.
-4.  Acesse a aplicação em `http://localhost:[porta_nginx]` (a porta configurada no `.env`). A documentação da API (Swagger UI) estará disponível em `http://localhost:8000/docs`.
-
-[Opcional: Adicionar uma ou duas screenshots da aplicação em funcionamento para visualização.]
-
 ## Status do Projeto
 
 Atualmente, o projeto está em sua **primeira versão funcional**. As funcionalidades principais descritas acima foram implementadas e testadas.
 
-[Opcional: Se houver planos para futuras versões ou melhorias, pode mencioná-los brevemente aqui.]
-
----
-
-Substitua os placeholders `[ ... ]` pelas informações específicas do seu projeto e da faculdade/filial do SENAI. Este `README.md` é simples, direto e cumpre o objetivo de apresentar o projeto e suas tecnologias de forma clara. Parabéns novamente pelo projeto!
